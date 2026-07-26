@@ -39,6 +39,13 @@ export async function initDB() {
         likes_count INTEGER DEFAULT 0, comments_count INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS likes (
+        id SERIAL PRIMARY KEY,
+        post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT likes_post_user_unique UNIQUE (post_id, user_id)
+      );
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -82,7 +89,7 @@ export async function initDB() {
       );
     `);
 
-    console.log('✅ PostgreSQL migracije uspešno izvršene');
+    console.log('✅ PostgreSQL migracije uspešno izvršene (uključujući likes tabelu)');
 
     const userRes = await activePool.query('SELECT * FROM users WHERE nickname = $1', ['halil_official']);
     if (userRes.rows.length === 0) {
