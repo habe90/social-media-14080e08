@@ -6,14 +6,41 @@ const { Pool } = pg;
 
 const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/selamy';
 
-export const pool = new Pool({
+// Proveri da li DATABASE_URL ili okruženje traži SSL
+const useSSL = process.env.PGSSLMODE === 'require' || connectionString.includes('sslmode=require');
+
+let activePool = new Pool({
   connectionString,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+  ssl: useSSL ? { rejectUnauthorized: false } : false
 });
+
+// Proxy objekat za query pozive kako bi re-inicijalizacija pool-a bez SSL-a radila providno
+export const pool = {
+  query: (...args) => activePool.query(...args),
+  end: () => activePool.end()
+};
 
 export async function initDB() {
   try {
-    await pool.query(`
+    // Provera konekcije i eventualni fallback sa SSL na non-SSL
+    try {
+      await activePool.query('SELECT 1');
+    } catch (connErr) {
+      if (connErr.message && connErr.message.includes('does not support SSL')) {
+        console.log('⚠️ PostgreSQL server ne zahteva SSL, prebacujem konekciju na non-SSL...');
+        await activePool.end();
+        activePool = new Pool({
+          connectionString,
+          ssl: false
+        });
+        await activePool.query('SELECT 1');
+      } else {
+        throw connErr;
+      }
+    }
+
+    // Kreiranje SQL tabela (Migracije)
+    await activePool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         full_name VARCHAR(255) NOT NULL,
@@ -69,13 +96,15 @@ export async function initDB() {
       );
     `);
 
+    console.log('✅ PostgreSQL migracije uspešno izvršene (Sve tabele su spremne)');
+
     // Provera i kreiranje podrazumevanog naloga halil_official
-    const userRes = await pool.query('SELECT * FROM users WHERE nickname = $1', ['halil_official']);
+    const userRes = await activePool.query('SELECT * FROM users WHERE nickname = $1', ['halil_official']);
     if (userRes.rows.length === 0) {
       const salt = bcrypt.genSaltSync(10);
       const hash = bcrypt.hashSync('selamy123', salt);
 
-      await pool.query(`
+      await activePool.query(`
         INSERT INTO users (full_name, nickname, email, phone, password_hash, avatar, bio, location)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `, [
@@ -91,7 +120,7 @@ export async function initDB() {
       console.log('✅ Defaultni nalog halil_official uspešno kreiran u PostgreSQL bazi');
     }
   } catch (err) {
-    console.error('⚠️ PostgreSQL inicijalizacija DB-a:', err.message);
+    console.error('⚠️ PostgreSQL inicijalizacija DB-a greška:', err.message);
   }
 }
 
