@@ -14,7 +14,7 @@ export function setToken(token) {
   }
 }
 
-// 1. AUTH
+// 1. AUTH API
 export async function registerUser(userData) {
   try {
     const res = await fetch(`${API_BASE}/auth/register`, {
@@ -62,7 +62,79 @@ export async function fetchCurrentUser() {
   }
 }
 
-// 2. REELS API
+// 2. POSTS API
+export async function fetchPostsAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/posts`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.posts;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function createPostAPI(postData) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  try {
+    const res = await fetch(`${API_BASE}/posts`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(postData)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.post;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function likePostAPI(postId) {
+  try {
+    const res = await fetch(`${API_BASE}/posts/${postId}/like`, { method: 'POST' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    return null;
+  }
+}
+
+// 3. STORIES API
+export async function fetchStoriesAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/stories`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.stories;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function createStoryAPI(storyData) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  try {
+    const res = await fetch(`${API_BASE}/stories`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(storyData)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.story;
+  } catch (err) {
+    return null;
+  }
+}
+
+// 4. REELS API
 export async function fetchReelsAPI() {
   try {
     const res = await fetch(`${API_BASE}/reels`);
@@ -103,32 +175,32 @@ export async function likeReelAPI(reelId) {
   }
 }
 
-// 3. POSTS API
-export async function fetchPostsAPI() {
+// 5. FORUM API
+export async function fetchForumAPI() {
   try {
-    const res = await fetch(`${API_BASE}/posts`);
+    const res = await fetch(`${API_BASE}/forum`);
     if (!res.ok) return null;
     const data = await res.json();
-    return data.posts;
+    return data.topics;
   } catch (err) {
     return null;
   }
 }
 
-export async function createPostAPI(postData) {
+export async function createForumTopicAPI(topicData) {
   const token = getToken();
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
-    const res = await fetch(`${API_BASE}/posts`, {
+    const res = await fetch(`${API_BASE}/forum/topics`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(postData)
+      body: JSON.stringify(topicData)
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return data.post;
+    return data.topic;
   } catch (err) {
     return null;
   }
