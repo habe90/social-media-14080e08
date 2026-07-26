@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Selamy - Islamska mreža i zajednica</title>
+  <!-- FontAwesome & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+
+    <!-- BOČNA NAVIGACIJA -->
+    <aside class="sidebar">
+      <div class="sidebar-brand" data-tab="home">
+        <div class="logo-icon"><i class="fa-solid fa-paper-plane"></i></div>
+        <span class="logo-text">Selamy</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-tab="home">
+          <i class="fa-solid fa-house"></i>
+          <span>Početna</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="forum">
+          <i class="fa-solid fa-comments"></i>
+          <span>Forum i zajednica</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Istraži</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="reels">
+          <i class="fa-solid fa-clapperboard"></i>
+          <span>Reels</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="messages">
+          <i class="fa-solid fa-paper-plane"></i>
+          <span>Poruke</span>
+          <span class="badge" id="unread-count">2</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="notifications">
+          <i class="fa-solid fa-heart"></i>
+          <span>Obavještenja</span>
+          <span class="dot"></span>
+        </a>
+        <a href="#" class="nav-item" id="btn-open-create">
+          <i class="fa-regular fa-square-plus"></i>
+          <span>Kreiraj</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="profile">
+          <div class="mini-avatar">
+            <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80" alt="Profil">
+          </div>
+          <span>Moj profil</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="#" class="nav-item" id="btn-logout-sidebar" style="color: #ef4444; margin-bottom: 6px;">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Odjava</span>
+        </a>
+        <div class="nav-item" style="font-size: 13px; color: var(--text-muted); cursor: default;">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Mreža Selamy v3.0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MOBILNO ZAGLAVLJE -->
+    <header class="mobile-header">
+      <div class="logo-text" data-tab="home" style="cursor: pointer;">Selamy</div>
+      <div class="mobile-actions">
+        <button class="icon-btn" id="btn-mobile-location" title="Detektuj preciznu GPS lokaciju"><i class="fa-solid fa-location-crosshairs" style="color: var(--primary-blue);"></i></button>
+        <button class="icon-btn" id="btn-mobile-create" title="Kreiraj sadržaj"><i class="fa-regular fa-square-plus"></i></button>
+        <button class="icon-btn nav-item" data-tab="forum" title="Forum"><i class="fa-solid fa-comments"></i></button>
+        <button class="icon-btn nav-item" data-tab="messages" title="Poruke"><i class="fa-regular fa-paper-plane"></i><span class="badge">2</span></button>
+      </div>
+    </header>
+
+    <!-- GLAVNI SADRŽAJ -->
+    <main class="main-content">
+
+      <!-- STRANICA 1: POČETNA -->
+      <section id="tab-home" class="tab-pane active">
+        <div class="feed-layout">
+          <div class="feed-center">
+            
+            <!-- VAKTIJA I NAMASKA VREMENA -->
+            <div id="prayer-times-widget"></div>
+
+            <!-- INSPIRACIJA DANA -->
+            <div id="inspiration-widget-container"></div>
+
+            <!-- TRAKA SA PRIČAMA -->
+            <div class="stories-wrapper">
+              <div class="stories-container" id="stories-list">
+                <!-- Priče se učitavaju dinamički -->
+              </div>
+            </div>
+
+            <!-- FEED OBJAVE -->
+            <div id="posts-container" class="posts-list">
+              <!-- Objave se učitavaju dinamički -->
+            </div>
+          </div>
+
+          <!-- DESNA TRAKA -->
+          <aside class="right-sidebar">
+            <div class="user-mini-card">
+              <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80" alt="Avatar">
+              <div class="user-mini-info">
+                <span class="username">halil_official</span>
+                <span class="fullname">Halil Hodžić</span>
+                <span class="user-gps-tag" id="sidebar-gps-tag"><i class="fa-solid fa-location-dot"></i> Nije detektovano</span>
+              </div>
+              <button class="btn-text nav-item" data-tab="profile">Moj profil</button>
+            </div>
+
+            <!-- DNEVNI IZAZOV DOBRIH DJELA -->
+            <div id="daily-challenges-widget"></div>
+
+            <div class="suggestions-header">
+              <span>Prijedlozi za vas u blizini</span>
+              <a href="#" id="btn-see-all-suggestions">Vidi sve</a>
+            </div>
+
+            <div class="suggestions-list" id="suggestions-list">
+              <!-- Prijedlozi se učitavaju dinamički -->
+            </div>
+
+            <footer class="footer-links">
+              <p>© 2026 MREŽA SELAMY • SVA PRAVA ZADRŽANA</p>
+            </footer>
+          </aside>
+        </div>
+      </section>
+
+      <!-- STRANICA 2: FORUM I ZAJEDNICA -->
+      <section id="tab-forum" class="tab-pane">
+        <div class="forum-container">
+          <div class="forum-hero">
+            <div class="forum-hero-text">
+              <h2>Forum i zajednica 💬</h2>
+              <p>Mijesto za korisne savjete, nasihat, pitanja, razmjenu znanja i humanitarne akcije.</p>
+            </div>
+            <button class="btn-primary" id="btn-open-new-topic"><i class="fa-solid fa-pen-to-square"></i> Pokreni novu temu</button>
+          </div>
+
+          <div class="forum-categories">
+            <button class="forum-chip active" data-forum-cat="all">Sve teme</button>
+            <button class="forum-chip" data-forum-cat="nasihat">💡 Savjeti i nasihat</button>
+            <button class="forum-chip" data-forum-cat="znanje">📚 Znanje i edukacija</button>
+            <button class="forum-chip" data-forum-cat="humanitarno">🤝 Humanitarno</button>
+            <button class="forum-chip" data-forum-cat="opste">💬 Opšte korisno</button>
+          </div>
+
+          <div class="forum-topics-container" id="forum-topics-container">
+            <!-- Teme foruma -->
+          </div>
+        </div>
+      </section>
+
+      <!-- STRANICA 3: ISTRAŽI -->
+      <section id="tab-search" class="tab-pane">
+        <div class="search-container">
+          <div class="search-bar-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="search-input" placeholder="Pretraži korisnike, objave ili oznake u blizini...">
+          </div>
+          
+          <div class="search-tags" id="search-tags">
+            <button class="tag-chip active" data-filter="all">Sve</button>
+            <button class="tag-chip" data-filter="fotografije">#Fotografije</button>
+            <button class="tag-chip" data-filter="putovanja">#Putovanja</button>
+            <button class="tag-chip" data-filter="moda">#Moda</button>
+            <button class="tag-chip" data-filter="tehnologija">#Tehnologija</button>
+          </div>
+
+          <div class="explore-grid" id="explore-grid">
+            <!-- Grid sa slikama -->
+          </div>
+        </div>
+      </section>
+
+      <!-- STRANICA 4: REELS -->
+      <section id="tab-reels" class="tab-pane">
+        <div class="reels-wrapper">
+          <div class="reels-feed" id="reels-container">
+            <!-- Reels zapisi -->
+          </div>
+        </div>
+      </section>
+
+      <!-- STRANICA 5: PORUKE -->
+      <section id="tab-messages" class="tab-pane">
+        <div class="messages-container">
+          <div class="chats-sidebar">
+            <div class="chats-header">
+              <h3>halil_official <i class="fa-solid fa-angle-down"></i></h3>
+              <button class="icon-btn" title="Nova poruka"><i class="fa-regular fa-pen-to-square"></i></button>
+            </div>
+            <div class="chats-list" id="chats-list">
+              <!-- Lista razgovora -->
+            </div>
+          </div>
+          
+          <div class="chat-window" id="chat-window">
+            <div class="empty-chat-state" id="empty-chat-state">
+              <i class="fa-regular fa-paper-plane"></i>
+              <h3>Vaše poruke</h3>
+              <p>Pošaljite privatne fotografije i poruke prijateljima na mreži Selamy.</p>
+              <button class="btn-primary" id="btn-start-chat">Pošalji poruku</button>
+            </div>
+            
+            <div class="active-chat-content hidden" id="active-chat-content">
+              <!-- Aktivni chat -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STRANICA 6: OBAVJEŠTENJA -->
+      <section id="tab-notifications" class="tab-pane">
+        <div class="notifications-container">
+          <h2>Obavještenja</h2>
+          
+          <div class="notif-section">
+            <h4>Danas</h4>
+            <div class="notif-list">
+              <div class="notif-item">
+                <div class="notif-left">
+                  <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&q=80" alt="Emina">
+                  <span><strong>emina_k</strong> je podržala vaš odgovor na forumu.</span>
+                </div>
+                <button class="btn-secondary" style="padding: 4px 12px; font-size: 12px;">Pogledaj</button>
+              </div>
+              <div class="notif-item">
+                <div class="notif-left">
+                  <img src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&q=80" alt="Tarik">
+                  <span><strong>tarik_fit</strong> vas je počeo pratiti.</span>
+                </div>
+                <button class="btn-primary" style="padding: 4px 12px; font-size: 12px;">Zaprati</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STRANICA 7: PROFIL -->
+      <section id="tab-profile" class="tab-pane">
+        <div class="profile-container">
+          <header class="profile-header">
+            <div class="profile-avatar-box">
+              <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80" alt="Halil">
+            </div>
+            <div class="profile-details">
+              <div class="profile-title-row">
+                <h2 class="profile-username">halil_official <i class="fa-solid fa-circle-check verified-badge"></i></h2>
+                <div class="profile-actions">
+                  <button class="btn-secondary" id="btn-edit-profile">Uredi profil</button>
+                  <button class="btn-secondary" id="btn-add-story-direct">+ Nova priča</button>
+                  <button class="icon-btn" id="btn-logout-prof" title="Odjava"><i class="fa-solid fa-right-from-bracket" style="color: #ef4444;"></i></button>
+                </div>
+              </div>
+
+              <div class="profile-stats">
+                <span><strong id="posts-count-num">14</strong> objava</span>
+                <span><strong id="followers-count">1.420</strong> pratilaca</span>
+                <span><strong>380</strong> prati</span>
+              </div>
+
+              <div class="profile-bio">
+                <p class="full-name">Halil Hodžić ✨</p>
+                <p class="bio-text">Digitalni kreator i ljubitelj fotografije 📷<br>Sarajevo, BiH 🇧🇦 | Život u plavim tonovima 💙</p>
+                <div class="profile-gps-box">
+                  <i class="fa-solid fa-location-dot" style="color: var(--primary-blue);"></i>
+                  <span id="profile-gps-text">Trenutna GPS lokacija: Nije detektovano</span>
+                  <button class="btn-text" id="btn-update-prof-gps" style="font-size: 11px; margin-left: auto;"><i class="fa-solid fa-arrows-rotate"></i> Osvježi</button>
+                </div>
+                <a href="https://selamy.ba" target="_blank" class="bio-link"><i class="fa-solid fa-link"></i> selamy.ba</a>
+              </div>
+            </div>
+          </header>
+
+          <!-- KARTICE PROFILA -->
+          <div class="profile-tabs">
+            <button class="prof-tab active" data-subtab="grid"><i class="fa-solid fa-border-all"></i> OBJAVE</button>
+            <button class="prof-tab" data-subtab="saved"><i class="fa-regular fa-bookmark"></i> SAČUVANO</button>
+            <button class="prof-tab" data-subtab="tagged"><i class="fa-solid fa-user-tag"></i> OZNAČENO</button>
+          </div>
+
+          <!-- GRID SA OBJAVAMA PROFILA -->
+          <div class="profile-grid" id="profile-grid">
+            <!-- Objave na profilu -->
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- MOBILNA DONJA TRAKA -->
+    <nav class="mobile-nav">
+      <a href="#" class="nav-item active" data-tab="home"><i class="fa-solid fa-house"></i></a>
+      <a href="#" class="nav-item" data-tab="forum"><i class="fa-solid fa-comments"></i></a>
+      <a href="#" class="nav-item" data-tab="reels"><i class="fa-solid fa-clapperboard"></i></a>
+      <a href="#" class="nav-item" data-tab="messages"><i class="fa-regular fa-paper-plane"></i></a>
+      <a href="#" class="nav-item" data-tab="profile">
+        <div class="mini-avatar">
+          <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80" alt="Profil">
+        </div>
+      </a>
+    </nav>
+
+    <!-- PREGLEDAČ PRIČA -->
+    <div id="story-modal" class="modal story-viewer-modal hidden">
+      <div class="story-modal-content">
+        <div class="story-progress-bar" id="story-progress-bar">
+          <!-- Trakice napretka -->
+        </div>
+
+        <div class="story-header">
+          <div class="story-user-info">
+            <img src="" id="story-modal-avatar" alt="Korisnik">
+            <span id="story-modal-username">username</span>
+            <span id="story-modal-time" class="story-time">12h</span>
+          </div>
+          <div class="story-controls">
+            <button class="story-btn" id="btn-pause-story"><i class="fa-solid fa-pause"></i></button>
+            <button class="story-btn" id="btn-close-story"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+
+        <div class="story-touch-left" id="story-touch-prev"></div>
+        <div class="story-touch-right" id="story-touch-next"></div>
+
+        <div class="story-media-container" id="story-media-container">
+          <!-- Sadržaj priče -->
+        </div>
+
+        <div class="story-footer">
+          <input type="text" placeholder="Pošalji poruku..." class="story-input" id="story-reply-input">
+          <button class="icon-btn story-heart"><i class="fa-regular fa-heart"></i></button>
+          <button class="icon-btn story-send" id="story-reply-send"><i class="fa-regular fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KOMENTARI NA REELS -->
+    <div id="reel-comments-modal" class="modal hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Komentari na video</h3>
+          <button class="icon-btn btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="max-height: 400px; overflow-y: auto;" id="reel-comments-list">
+          <!-- Komentari -->
+        </div>
+        <div class="post-add-comment">
+          <input type="text" id="reel-comment-input" placeholder="Dodaj komentar...">
+          <button class="btn-post-comment" id="btn-send-reel-comment">Objavi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL ZA NOVU TEMU NA FORUMU -->
+    <div id="new-topic-modal" class="modal hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Pokreni novu temu na forumu</h3>
+          <button class="icon-btn btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Kategorija diskusije</label>
+            <select id="topic-category-select" class="styled-input">
+              <option value="nasihat">💡 Savjeti i nasihat</option>
+              <option value="znanje">📚 Znanje i edukacija</option>
+              <option value="humanitarno">🤝 Humanitarno i volonterizam</option>
+              <option value="opste">💬 Opšte korisno</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Naslov teme ili pitanja</label>
+            <input type="text" id="topic-title-input" placeholder="Npr. Savjeti za usklađivanje namaza i radnih obaveza" class="styled-input">
+          </div>
+          <div class="form-group">
+            <label>Detaljan opis ili pitanje</label>
+            <textarea id="topic-content-input" placeholder="Napišite vaše pitanje ili poruku zajednici..." rows="4" class="styled-input"></textarea>
+          </div>
+          <button class="btn-primary full-width" id="btn-submit-new-topic">Objavi temu na forumu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL ZA KREIRANJE SADRŽAJA -->
+    <div id="create-modal" class="modal hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Kreiraj sadržaj</h3>
+          <button class="icon-btn btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <div class="create-type-selector">
+          <button class="create-tab active" id="tab-create-post">Objava</button>
+          <button class="create-tab" id="tab-create-story">Priča</button>
+          <button class="create-tab" id="tab-create-reel">Video reel</button>
+        </div>
+
+        <!-- FORMA ZA OBJAVU -->
+        <div class="modal-body" id="create-post-form">
+          <div class="upload-dropzone" id="post-dropzone">
+            <input type="file" id="post-file-input" accept="image/*" class="hidden-file-input">
+            <div class="upload-dropzone-content">
+              <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+              <h4>Dodajte sliku sa vašeg uređaja</h4>
+              <p>Prevucite sliku ili kliknite za izbor (automatsko sažimanje slika sa računara)</p>
+              <button type="button" class="btn-secondary" id="btn-select-post-file"><i class="fa-regular fa-image"></i> Izaberi sliku sa računara</button>
+            </div>
+          </div>
+
+          <div class="upload-preview-box hidden" id="post-preview-box">
+            <img src="" id="post-preview-img" alt="Pregled">
+            <div class="optimization-badge" id="post-opt-info">
+              <i class="fa-solid fa-bolt"></i> <span>Slika je sažeta i spremna za trenutno učitavanje</span>
+            </div>
+            <button type="button" class="btn-remove-preview" id="btn-remove-post-file"><i class="fa-solid fa-trash"></i> Ukloni sliku</button>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label>Opis objave</label>
+            <textarea id="post-caption" placeholder="Napišite opis za vašu objavu..." rows="2"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Automatska lokacija objave</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="post-location" placeholder="Lokacija se automatski očitava preko GPS-a..." class="styled-input" style="flex: 1;">
+              <button type="button" class="btn-secondary" id="btn-get-post-gps" title="Preuzmi moju tačnu GPS lokaciju" style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                <i class="fa-solid fa-location-crosshairs" style="color: var(--primary-blue);"></i> GPS Lokacija
+              </button>
+            </div>
+          </div>
+
+          <button class="btn-primary full-width" id="btn-submit-post">Objavi na mreži</button>
+        </div>
+
+        <!-- FORMA ZA PRIČU -->
+        <div class="modal-body hidden" id="create-story-form">
+          <div class="upload-dropzone" id="story-dropzone">
+            <input type="file" id="story-file-input" accept="image/*" class="hidden-file-input">
+            <div class="upload-dropzone-content">
+              <i class="fa-solid fa-circle-plus upload-icon" style="color: var(--accent-cyan);"></i>
+              <h4>Dodajte sliku za svoju priču</h4>
+              <p>Izaberite sliku sa vašeg računara ili telefona</p>
+              <button type="button" class="btn-secondary" id="btn-select-story-file"><i class="fa-regular fa-image"></i> Izaberi sliku priče</button>
+            </div>
+          </div>
+
+          <div class="upload-preview-box hidden" id="story-preview-box">
+            <img src="" id="story-preview-img" alt="Pregled priče">
+            <div class="optimization-badge" id="story-opt-info">
+              <i class="fa-solid fa-bolt"></i> <span>Slika je spremna za prikaz priče</span>
+            </div>
+            <button type="button" class="btn-remove-preview" id="btn-remove-story-file"><i class="fa-solid fa-trash"></i> Ukloni sliku</button>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label>Tekst preko priče (opcionalno):</label>
+            <input type="text" id="story-text-input" placeholder="Npr. Predivan dan! ☀️" class="styled-input">
+          </div>
+
+          <button class="btn-primary full-width" id="btn-submit-story">Objavi priču</button>
+        </div>
+
+        <!-- FORMA ZA REEL -->
+        <div class="modal-body hidden" id="create-reel-form">
+          <div class="upload-dropzone" id="reel-dropzone">
+            <input type="file" id="reel-file-input" accept="video/mp4,video/webm,video/quicktime,image/*" class="hidden-file-input">
+            <div class="upload-dropzone-content">
+              <i class="fa-solid fa-film upload-icon" style="color: #a855f7;"></i>
+              <h4>Dodajte kratki video zapis sa računara</h4>
+              <p>Podržani formati: MP4, WebM, MOV</p>
+              <button type="button" class="btn-secondary" id="btn-select-reel-file"><i class="fa-solid fa-video"></i> Izaberi video datoteku</button>
+            </div>
+          </div>
+
+          <div class="upload-preview-box hidden" id="reel-preview-box">
+            <video src="" id="reel-preview-video" controls style="max-height: 200px; width: 100%; border-radius: var(--radius-md); object-fit: cover;" class="hidden"></video>
+            <img src="" id="reel-preview-img" alt="Pregled video zapisa" class="hidden">
+            <div class="optimization-badge" id="reel-opt-info">
+              <i class="fa-solid fa-bolt"></i> <span>Video je spreman za prikaz</span>
+            </div>
+            <button type="button" class="btn-remove-preview" id="btn-remove-reel-file"><i class="fa-solid fa-trash"></i> Ukloni video</button>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label>Opis video zapisa:</label>
+            <input type="text" id="reel-caption-input" placeholder="Npr. Sarajevo noću! 🌃✨" class="styled-input">
+          </div>
+
+          <div class="form-group">
+            <label>Zvuk ili muzička numera:</label>
+            <input type="text" id="reel-audio-input" placeholder="Npr. Originalni zvuk - halil_official" class="styled-input">
+          </div>
+
+          <button class="btn-primary full-width" id="btn-submit-reel">Objavi video reel</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MODAL ZA UREĐIVANJE PROFILA -->
+    <div id="edit-profile-modal" class="modal hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Uredi profil</h3>
+          <button class="icon-btn btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Ime i prezime</label>
+            <input type="text" id="edit-fullname" value="Halil Hodžić" class="styled-input">
+          </div>
+          <div class="form-group">
+            <label>Nadimak / Korisničko ime</label>
+            <input type="text" id="edit-username" value="halil_official" class="styled-input">
+          </div>
+          <div class="form-group">
+            <label>E-mail adresa</label>
+            <input type="email" id="edit-email" value="halil.hodzic@selamy.ba" class="styled-input">
+          </div>
+          <div class="form-group">
+            <label>Broj telefona (SMS 2FA / Notifikacije)</label>
+            <input type="tel" id="edit-phone" value="+387 61 123 456" class="styled-input">
+          </div>
+          <div class="form-group">
+            <label>Biografija</label>
+            <textarea id="edit-bio" rows="3" class="styled-input">Digitalni kreator i ljubitelj fotografije 📷&#10;Sarajevo, BiH 🇧🇦 | Život u plavim tonovima 💙</textarea>
+          </div>
+          <button class="btn-primary full-width" id="btn-save-profile">Sačuvaj izmjene</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL ZA POTVRDU ODJAVE -->
+    <div id="logout-modal" class="modal hidden">
+      <div class="modal-card" style="max-width: 380px; text-align: center;">
+        <div class="modal-header" style="justify-content: center; border-bottom: none; padding-top: 24px;">
+          <div style="width: 60px; height: 60px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto;">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </div>
+        </div>
+        <div class="modal-body" style="padding-top: 0;">
+          <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">Odjava sa računa?</h3>
+          <p style="font-size: 13px; color: var(--text-secondary);">Moraćete se ponovo prijaviti sa svojim korisničkim imenom i lozinkom.</p>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+            <button class="btn-primary" id="btn-confirm-logout" style="background-color: #ef4444; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">Odjavi me</button>
+            <button class="btn-secondary btn-close-modal">Otkaži</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROZOR ZA PRIJAVU I REGISTRACIJU (AUTH OVERLAY) -->
+    <div id="login-overlay" class="modal hidden" style="background-color: var(--bg-dark); z-index: 2000;">
+      <div class="modal-card" style="max-width: 440px; text-align: center; border: 1px solid var(--border-color); padding: 24px; max-height: 90vh; overflow-y: auto;">
+        <div style="margin-bottom: 20px;">
+          <div class="logo-icon" style="margin: 0 auto 10px auto; width: 52px; height: 52px; font-size: 24px;">
+            <i class="fa-solid fa-paper-plane"></i>
+          </div>
+          <h1 class="logo-text" style="font-size: 30px;">Selamy</h1>
+          <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Islamska mreža i korisna zajednica</p>
+        </div>
+
+        <!-- TABOVI PRIJAVA / REGISTRACIJA -->
+        <div style="display: flex; background: rgba(255,255,255,0.05); border-radius: var(--radius-md); padding: 4px; margin-bottom: 20px;">
+          <button id="auth-tab-login" class="create-tab active" style="flex: 1; border-radius: var(--radius-sm); font-weight: 600;">Prijavi se</button>
+          <button id="auth-tab-register" class="create-tab" style="flex: 1; border-radius: var(--radius-sm); font-weight: 600;">Registruj se</button>
+        </div>
+
+        <!-- FORMA ZA PRIJAVU -->
+        <div id="auth-form-login" style="display: flex; flex-direction: column; gap: 14px; text-align: left;">
+          <div class="form-group">
+            <label><i class="fa-solid fa-user"></i> Korisničko ime, email ili telefon</label>
+            <input type="text" id="login-username-input" value="halil_official" class="styled-input" placeholder="Unesite nadimak, email ili broj telefona">
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-lock"></i> Lozinka</label>
+            <input type="password" id="login-password-input" value="••••••••" class="styled-input" placeholder="Lozinka">
+          </div>
+          <button class="btn-primary full-width" id="btn-do-login" style="margin-top: 6px;"><i class="fa-solid fa-right-to-bracket"></i> Prijavi se na aplikaciju</button>
+          <p style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px;">Nemate nalog? <a href="#" id="link-goto-register" style="color: var(--primary-blue); font-weight: 600;">Registrujte se besplatno</a></p>
+        </div>
+
+        <!-- FORMA ZA REGISTRACIJU -->
+        <div id="auth-form-register" class="hidden" style="display: flex; flex-direction: column; gap: 14px; text-align: left;">
+          <div class="form-group">
+            <label><i class="fa-solid fa-id-card"></i> Ime i prezime</label>
+            <input type="text" id="reg-fullname" class="styled-input" placeholder="Npr. Halil Hodžić">
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-at"></i> Nadimak / Korisničko ime (Nickname)</label>
+            <input type="text" id="reg-username" class="styled-input" placeholder="Npr. halil_official">
+            <span style="font-size: 11px; color: var(--text-muted);">Vaš jedinstveni nadimak za pretragu na mreži</span>
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-envelope"></i> E-mail adresa</label>
+            <input type="email" id="reg-email" class="styled-input" placeholder="Npr. halil@selamy.ba">
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-phone"></i> Broj telefona (SMS 2FA & Notifikacije)</label>
+            <input type="tel" id="reg-phone" class="styled-input" placeholder="Npr. +387 61 123 456">
+            <span style="font-size: 11px; color: var(--primary-blue); display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+              <i class="fa-solid fa-shield-halved"></i> Potrebno za mobilnu aplikaciju, verifikaciju i SMS 2FA zaštitu
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-lock"></i> Lozinka</label>
+            <input type="password" id="reg-password" class="styled-input" placeholder="Najmanje 8 karaktera">
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-shield-cat"></i> Potvrda lozinke</label>
+            <input type="password" id="reg-confirm-password" class="styled-input" placeholder="Ponovite lozinku">
+          </div>
+
+          <label style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="reg-agree-terms" checked style="margin-top: 2px;">
+            <span>Prihvatam pravila korištenja mreže Selamy i pristanak za obavještenja na mobilnom uređaju.</span>
+          </label>
+
+          <button class="btn-primary full-width" id="btn-do-register" style="margin-top: 6px;"><i class="fa-solid fa-user-plus"></i> Kreiraj besplatan nalog</button>
+
+          <p style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 4px;">Već imate nalog? <a href="#" id="link-goto-login" style="color: var(--primary-blue); font-weight: 600;">Prijavite se ovdje</a></p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- OBAVJEŠTENJA (TOAST) -->
+    <div id="toast-container" class="toast-container"></div>
+
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
