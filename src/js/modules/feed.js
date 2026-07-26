@@ -1,14 +1,37 @@
-// SELAMY - FEED OBJAVE I INSPIRACIJA DANA
+// SELAMY - FEED OBJAVE I INSPIRACIJA DANA (POSTGRESQL SYNC)
 
 import { state } from '../state.js';
 import { showToast } from '../utils/compressor.js';
 import { playSound } from '../utils/sound.js';
 import { renderProfileGrid } from './profile.js';
+import { fetchPostsAPI, likePostAPI } from '../services/api.js';
 
-export function initFeedModule() {
+export async function initFeedModule() {
   renderInspirationWidget();
+  await loadPostsFromBackend();
   renderPosts();
   renderSuggestions();
+}
+
+export async function loadPostsFromBackend() {
+  const backendPosts = await fetchPostsAPI();
+  if (backendPosts && Array.isArray(backendPosts)) {
+    state.posts = backendPosts.map(p => ({
+      id: p.id,
+      author: p.author || 'halil_official',
+      avatar: p.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+      verified: true,
+      location: p.location || 'Kalesija (Babajići)',
+      image: p.image_url || p.image,
+      caption: p.caption || '',
+      likes: p.likes_count || p.likes || 0,
+      liked: false,
+      saved: false,
+      isFollowing: false,
+      timeAgo: p.created_at ? new Date(p.created_at).toLocaleDateString('bs-BA') : 'Upravo',
+      comments: []
+    }));
+  }
 }
 
 export function renderInspirationWidget() {
@@ -68,6 +91,17 @@ export function renderPosts() {
   if (!container) return;
 
   container.innerHTML = '';
+
+  if (!state.posts || state.posts.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); padding: 50px 20px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); margin-top: 20px;">
+        <i class="fa-solid fa-images" style="font-size: 40px; margin-bottom: 15px; color: var(--primary-blue);"></i>
+        <h3 style="color: var(--text-primary); margin-bottom: 8px;">Nema objavljenih objava</h3>
+        <p style="font-size: 14px;">Baza je trenutno prazna. Budite prvi koji će podijeliti objavu sa vašeg uređaja!</p>
+      </div>
+    `;
+    return;
+  }
 
   state.posts.forEach((post) => {
     const card = document.createElement('article');
@@ -137,6 +171,7 @@ export function renderPosts() {
           if (!post.liked) {
             post.liked = true;
             post.likes++;
+            likePostAPI(post.id);
             renderPosts();
           }
           if (heartAnim) {
@@ -154,6 +189,7 @@ export function renderPosts() {
         post.liked = !post.liked;
         post.likes += post.liked ? 1 : -1;
         playSound(post.liked ? 'like' : 'click');
+        likePostAPI(post.id);
         renderPosts();
       };
     }
