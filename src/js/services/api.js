@@ -1,16 +1,28 @@
-// SELAMY API SERVICE - POSTGRESQL BACKEND
+// SELAMY API SERVICE - POSTGRESQL BACKEND WITH COOKIE AUTH
 
 const API_BASE = '/api';
 
 export function getToken() { return localStorage.getItem('selamy_token'); }
 export function setToken(token) { token ? localStorage.setItem('selamy_token', token) : localStorage.removeItem('selamy_token'); }
 
+function getHeaders(extra = {}) {
+  const token = getToken();
+  const headers = { ...extra };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 // 1. AUTH
 export async function registerUser(userData) {
   try {
-    const res = await fetch(`${API_BASE}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(userData) });
+    const res = await fetch(`${API_BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(userData)
+    });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Greška pri registraciji');
+    if (!res.ok) return { success: false, status: res.status, error: data.error || 'Greška pri registraciji' };
     if (data.token) setToken(data.token);
     return data;
   } catch (err) { return { success: false, error: err.message }; }
@@ -18,26 +30,49 @@ export async function registerUser(userData) {
 
 export async function loginUser(credentials) {
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) });
+    const res = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(credentials)
+    });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Greška pri prijavi');
+    if (!res.ok) return { success: false, status: res.status, error: data.error || 'Greška pri prijavi' };
     if (data.token) setToken(data.token);
     return data;
   } catch (err) { return { success: false, error: err.message }; }
 }
 
+export async function logoutUser() {
+  try {
+    setToken(null);
+    const res = await fetch(`${API_BASE}/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    return await res.json();
+  } catch (err) { return { success: true }; }
+}
+
 export async function fetchCurrentUser() {
-  const token = getToken(); if (!token) return null;
-  try { const res = await fetch(`${API_BASE}/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } }); if (!res.ok) return null; const data = await res.json(); return data.user; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/me`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.user;
+  } catch (err) { return null; }
 }
 
 // 2. POSTS + COMMENTS + LIKES
 export async function fetchPostsAPI() {
-  const token = getToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
   try {
-    const res = await fetch(`${API_BASE}/posts`, { headers });
+    const res = await fetch(`${API_BASE}/posts`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
     if (!res.ok) return null;
     const data = await res.json();
     return data.posts;
@@ -45,74 +80,161 @@ export async function fetchPostsAPI() {
 }
 
 export async function createPostAPI(postData) {
-  const token = getToken(); const headers = { 'Content-Type': 'application/json' }; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/posts`, { method: 'POST', headers, body: JSON.stringify(postData) }); if (!res.ok) return null; const data = await res.json(); return data.post; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/posts`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify(postData)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.post;
+  } catch (err) { return null; }
 }
 
 export async function likePostAPI(postId) {
-  const token = getToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
   try {
-    const res = await fetch(`${API_BASE}/posts/${postId}/like`, { method: 'POST', headers });
+    const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include'
+    });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      return { success: false, error: errData.error || 'Neuspješna autorizacija ili greška' };
+      return { success: false, error: errData.error || 'Niste prijavljeni ili je došlo do greške' };
     }
     return await res.json();
   } catch (err) { return null; }
 }
 
 export async function commentPostAPI(postId, text) {
-  const token = getToken(); const headers = { 'Content-Type': 'application/json' }; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/posts/${postId}/comment`, { method: 'POST', headers, body: JSON.stringify({ text }) }); if (!res.ok) return null; return await res.json(); } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/posts/${postId}/comment`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
 }
 
 // 3. STORIES
 export async function fetchStoriesAPI() {
-  try { const res = await fetch(`${API_BASE}/stories`); if (!res.ok) return null; const data = await res.json(); return data.stories; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/stories`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.stories;
+  } catch (err) { return null; }
 }
 
 export async function createStoryAPI(storyData) {
-  const token = getToken(); const headers = { 'Content-Type': 'application/json' }; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/stories`, { method: 'POST', headers, body: JSON.stringify(storyData) }); if (!res.ok) return null; const data = await res.json(); return data.story; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/stories`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify(storyData)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.story;
+  } catch (err) { return null; }
 }
 
 export async function commentStoryAPI(storyId, text) {
-  const token = getToken(); const headers = { 'Content-Type': 'application/json' }; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/stories/${storyId}/comment`, { method: 'POST', headers, body: JSON.stringify({ text }) }); return await res.json(); } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/stories/${storyId}/comment`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify({ text })
+    });
+    return await res.json();
+  } catch (err) { return null; }
 }
 
 // 4. REELS
 export async function fetchReelsAPI() {
-  try { const res = await fetch(`${API_BASE}/reels`); if (!res.ok) return null; const data = await res.json(); return data.reels; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/reels`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.reels;
+  } catch (err) { return null; }
 }
 
 export async function createReelAPI(reelData) {
-  const token = getToken(); const headers = { 'Content-Type': 'application/json' }; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/reels`, { method: 'POST', headers, body: JSON.stringify(reelData) }); if (!res.ok) return null; const data = await res.json(); return data.reel; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/reels`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify(reelData)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.reel;
+  } catch (err) { return null; }
 }
 
 export async function likeReelAPI(reelId) {
-  const token = getToken(); const headers = {}; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/reels/${reelId}/like`, { method: 'POST', headers }); if (!res.ok) return null; return await res.json(); } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/reels/${reelId}/like`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
 }
 
 export async function commentReelAPI(reelId, text) {
-  const token = getToken(); const headers = { 'Content-Type': 'application/json' }; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/reels/${reelId}/comment`, { method: 'POST', headers, body: JSON.stringify({ text }) }); if (!res.ok) return null; return await res.json(); } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/reels/${reelId}/comment`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
 }
 
 export async function fetchReelCommentsAPI(reelId) {
-  try { const res = await fetch(`${API_BASE}/reels/${reelId}/comments`); if (!res.ok) return null; const data = await res.json(); return data.comments; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/reels/${reelId}/comments`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.comments;
+  } catch (err) { return null; }
 }
 
 // 5. FORUM
 export async function fetchForumAPI() {
-  try { const res = await fetch(`${API_BASE}/forum`); if (!res.ok) return null; const data = await res.json(); return data.topics; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/forum`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.topics;
+  } catch (err) { return null; }
 }
 
 export async function createForumTopicAPI(topicData) {
-  const token = getToken(); const headers = { 'Content-Type': 'application/json' }; if (token) headers['Authorization'] = `Bearer ${token}`;
-  try { const res = await fetch(`${API_BASE}/forum/topics`, { method: 'POST', headers, body: JSON.stringify(topicData) }); if (!res.ok) return null; const data = await res.json(); return data.topic; } catch (err) { return null; }
+  try {
+    const res = await fetch(`${API_BASE}/forum/topics`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify(topicData)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.topic;
+  } catch (err) { return null; }
 }
