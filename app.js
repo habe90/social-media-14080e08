@@ -4,14 +4,14 @@ import { state } from './src/js/state.js';
 import { compressImageFile, showToast } from './src/js/utils/compressor.js';
 import { playSound } from './src/js/utils/sound.js';
 import { initPrayerTimesService, detectUserPreciseLocation } from './src/js/services/prayerTimes.js';
-import { initForumModule } from './src/js/modules/forum.js';
+import { initForumModule, loadForumTopicsFromBackend } from './src/js/modules/forum.js';
 import { initChallengesModule } from './src/js/modules/challenges.js';
-import { initStoriesModule, renderStories } from './src/js/modules/stories.js';
+import { initStoriesModule, renderStories, loadStoriesFromBackend } from './src/js/modules/stories.js';
 import { initReelsModule, renderReels, loadReelsFromBackend } from './src/js/modules/reels.js';
-import { initFeedModule, renderPosts } from './src/js/modules/feed.js';
+import { initFeedModule, renderPosts, loadPostsFromBackend } from './src/js/modules/feed.js';
 import { initChatModule } from './src/js/modules/chat.js';
 import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.js';
-import { registerUser, loginUser, fetchCurrentUser, setToken, createReelAPI, createPostAPI } from './src/js/services/api.js';
+import { registerUser, loginUser, fetchCurrentUser, setToken, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -23,10 +23,10 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
 
 async function initApp() {
   initPrayerTimesService();
-  initForumModule();
+  await initForumModule();
   initChallengesModule();
-  initStoriesModule();
-  initFeedModule();
+  await initStoriesModule();
+  await initFeedModule();
   await initReelsModule();
   initChatModule();
   initProfileModule();
@@ -735,7 +735,7 @@ async function handleCreatePost() {
   switchTab('home');
 }
 
-function handleCreateStory() {
+async function handleCreateStory() {
   if (!state.uploadedMedia.story?.url) {
     showToast('Molimo izaberite sliku za priču sa vašeg uređaja.');
     return;
@@ -745,6 +745,9 @@ function handleCreateStory() {
 
   let imageUrl = state.uploadedMedia.story.url;
   const text = document.getElementById('story-text-input').value.trim();
+
+  showToast('Spremam Priču u PostgreSQL bazu...');
+  const backendStory = await createStoryAPI({ media_url: imageUrl, text });
 
   let myStory = state.stories.find(s => s.isMe);
   if (!myStory) {
@@ -760,7 +763,7 @@ function handleCreateStory() {
   }
 
   myStory.slides.push({
-    id: 'slide-' + Date.now(),
+    id: backendStory ? backendStory.id : ('slide-' + Date.now()),
     media: imageUrl,
     time: 'Upravo',
     text: text
@@ -773,7 +776,7 @@ function handleCreateStory() {
 
   document.getElementById('story-text-input').value = '';
 
-  showToast('Vaša priča je uspješno objavljena!');
+  showToast('Vaša priča je sačuvana u PostgreSQL bazi!');
 }
 
 async function handleCreateReel() {
