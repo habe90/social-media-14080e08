@@ -16,42 +16,7 @@ app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ limit: '30mb', extended: true }));
 
 // Inicijalizacija PostgreSQL Baze
-initDB().then(() => seedDefaultData());
-
-// Inicijalno popunjavanje baze ako je prazna
-async function seedDefaultData() {
-  try {
-    const userRes = await pool.query('SELECT id FROM users WHERE nickname = $1', ['halil_official']);
-    if (userRes.rows.length === 0) return;
-    const userId = userRes.rows[0].id;
-
-    // Provera za Reels
-    const reelsCount = await pool.query('SELECT COUNT(*) FROM reels');
-    if (parseInt(reelsCount.rows[0].count, 10) === 0) {
-      await pool.query(`
-        INSERT INTO reels (user_id, video_url, caption, audio_title, likes_count)
-        VALUES 
-        ($1, 'https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-1232-large.mp4', 'Kratki vodič za noćnu fotografiju u gradu 🌙📸', 'Originalni zvuk - halil_official', 1240),
-        ($1, 'https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4', 'Šetnja uz obalu u zalazak sunca 🌊 Spektakl prirode!', 'Zalazak sunca 🎷', 3410)
-      `, [userId]);
-      console.log('✅ Inicijalni Reels zapisi ubaci u PostgreSQL bazu');
-    }
-
-    // Provera za Posts
-    const postsCount = await pool.query('SELECT COUNT(*) FROM posts');
-    if (parseInt(postsCount.rows[0].count, 10) === 0) {
-      await pool.query(`
-        INSERT INTO posts (user_id, caption, image_url, location, likes_count)
-        VALUES 
-        ($1, 'Predivno popodne u prirodi uz kafu i druženje! ☕✨ Kakvi su vaši planovi?', 'https://images.unsplash.com/photo-1563720223185-11003d516935?w=800&auto=format&fit=crop&q=80', 'Kalesija (Babajići)', 342),
-        ($1, 'Miris mora i beskrajno plavetnilo. Nema ničeg opuštajućeg od zvukova talasa 🌊💙 #Selamy', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80', 'Neum, BiH', 890)
-      `, [userId]);
-      console.log('✅ Inicijalne Objave ubacene u PostgreSQL bazu');
-    }
-  } catch (err) {
-    console.error('Seed error:', err.message);
-  }
-}
+initDB();
 
 // Middleware za verifikaciju JWT tokena (opciono ili sa fallback-om)
 function authenticateToken(req, res, next) {
@@ -90,7 +55,7 @@ async function optionalAuth(req, res, next) {
 
 // Health Check API
 app.get('/api/health', (req, res) => {
-  res.json({ name: 'Selamy PostgreSQL API', status: 'ok', version: '3.0' });
+  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '3.0' });
 });
 
 // -------------------------------------------------------------
