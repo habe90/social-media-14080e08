@@ -1,8 +1,7 @@
-// SELAMY API SERVICE - POVEZIVANJE SA EXPRESS BACKEND-OM
+// SELAMY API SERVICE - POVEZIVANJE SA EXPRESS POSTGRESQL BACKEND-OM
 
 const API_BASE = '/api';
 
-// Preuzimanje tokena iz LocalStorage-a
 export function getToken() {
   return localStorage.getItem('selamy_token');
 }
@@ -15,7 +14,7 @@ export function setToken(token) {
   }
 }
 
-// 1. REGISTRACIJA KORISNIKA
+// 1. AUTH
 export async function registerUser(userData) {
   try {
     const res = await fetch(`${API_BASE}/auth/register`, {
@@ -23,23 +22,15 @@ export async function registerUser(userData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData)
     });
-
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Greška pri registraciji');
-    }
-
-    if (data.token) {
-      setToken(data.token);
-    }
+    if (!res.ok) throw new Error(data.error || 'Greška pri registraciji');
+    if (data.token) setToken(data.token);
     return data;
   } catch (err) {
-    console.warn('Backend greška, prelazak na klijentski rezim:', err.message);
     return { success: false, error: err.message };
   }
 }
 
-// 2. PRIJAVA KORISNIKA (LOGIN)
 export async function loginUser(credentials) {
   try {
     const res = await fetch(`${API_BASE}/auth/login`, {
@@ -47,32 +38,22 @@ export async function loginUser(credentials) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials)
     });
-
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Greška pri prijavi');
-    }
-
-    if (data.token) {
-      setToken(data.token);
-    }
+    if (!res.ok) throw new Error(data.error || 'Greška pri prijavi');
+    if (data.token) setToken(data.token);
     return data;
   } catch (err) {
-    console.warn('Backend greška, prelazak na klijentski rezim:', err.message);
     return { success: false, error: err.message };
   }
 }
 
-// 3. PROVERA PROFILA TRENUTNOG KORISNIKA (/auth/me)
 export async function fetchCurrentUser() {
   const token = getToken();
   if (!token) return null;
-
   try {
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-
     if (!res.ok) return null;
     const data = await res.json();
     return data.user;
@@ -81,19 +62,70 @@ export async function fetchCurrentUser() {
   }
 }
 
-// 4. KREIRANJE NOVE OBJAVE NA BACKEND-U
+// 2. REELS API
+export async function fetchReelsAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/reels`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.reels;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function createReelAPI(reelData) {
+  const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  try {
+    const res = await fetch(`${API_BASE}/reels`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(reelData)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.reel;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function likeReelAPI(reelId) {
+  try {
+    const res = await fetch(`${API_BASE}/reels/${reelId}/like`, { method: 'POST' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    return null;
+  }
+}
+
+// 3. POSTS API
+export async function fetchPostsAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/posts`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.posts;
+  } catch (err) {
+    return null;
+  }
+}
+
 export async function createPostAPI(postData) {
   const token = getToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   try {
     const res = await fetch(`${API_BASE}/posts`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify(postData)
     });
-
     if (!res.ok) return null;
     const data = await res.json();
     return data.post;
