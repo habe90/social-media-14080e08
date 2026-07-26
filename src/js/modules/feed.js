@@ -26,7 +26,7 @@ export async function loadPostsFromBackend() {
       caption: p.caption || '',
       likes: p.likes_count || 0,
       saved: false,
-      timeAgo: p.created_at ? new Date(p.created_at).toLocaleDateString('bs-BA') : 'Upravo',
+      timeAgo: p.created_at ? (()=>{const d=new Date(p.created_at);return d.toLocaleDateString('bs-BA')})() : 'Upravo',
       comments: (p.comments || []).map(c => ({ id: c.id, user: c.user, text: c.text }))
     }));
   }
@@ -36,16 +36,13 @@ export function renderInspirationWidget() {
   const container = document.getElementById('inspiration-widget-container');
   if (!container) return;
   const insp = state.dailyInspiration;
-
   container.innerHTML = `
     <div class="inspiration-card">
       <div class="insp-header"><span class="insp-badge"><i class="fa-solid fa-star"></i> ${insp.type}</span><span class="insp-source">${insp.source}</span></div>
       ${insp.arabic ? `<p class="insp-arabic">${insp.arabic}</p>` : ''}
       <p class="insp-text">${insp.text}</p>
       <div class="insp-actions"><button class="btn-insp-share" id="btn-share-insp-story"><i class="fa-solid fa-circle-plus"></i> Podijeli u priču</button></div>
-    </div>
-  `;
-
+    </div>`;
   const btn = container.querySelector('#btn-share-insp-story');
   if (btn) btn.onclick = async () => {
     playSound('post');
@@ -55,7 +52,7 @@ export function renderInspirationWidget() {
     const s = await createStoryAPI({ media_url: media, text });
     let my = state.stories.find(x => x.isMe);
     if (!my) { my = { id: 'my-story', isMe: true, username: 'Vaša priča', avatar: state.currentUser.avatar, hasUnseen: true, slides: [] }; state.stories.unshift(my); }
-    my.slides.push({ id: s?.id || ('slide-' + Date.now()), media, time: 'Upravo', text });
+    my.slides.push({ id: s?.id || ('slide-'+Date.now()), media, time: 'Upravo', text });
     my.hasUnseen = true;
     showToast('Inspiracija podijeljena i sačuvana u bazi! ✨');
   };
@@ -72,32 +69,18 @@ export function renderPosts() {
   }
 
   state.posts.forEach((post) => {
-    const isLiked = state.likedPosts.has(post.id);
+    const isLiked = state.likedPosts.has(String(post.id));
+    const displayLikes = post.likes + (isLiked ? 1 : 0);
 
     const card = document.createElement('article');
     card.className = 'post-card';
     card.dataset.postId = post.id;
     card.innerHTML = `
-      <header class="post-header">
-        <div class="post-author"><img src="${post.avatar}" class="post-avatar" alt=""><div class="author-meta"><div class="author-name-row"><span class="author-name">${post.author}</span>${post.verified ? '<i class="fa-solid fa-circle-check verified-badge"></i>' : ''}</div>${post.location ? `<span class="post-location"><i class="fa-solid fa-location-dot"></i> ${post.location}</span>` : ''}</div></div>
-        <button class="icon-btn"><i class="fa-solid fa-ellipsis"></i></button>
-      </header>
+      <header class="post-header"><div class="post-author"><img src="${post.avatar}" class="post-avatar" alt=""><div class="author-meta"><div class="author-name-row"><span class="author-name">${post.author}</span>${post.verified?'<i class="fa-solid fa-circle-check verified-badge"></i>':''}</div>${post.location?`<span class="post-location"><i class="fa-solid fa-location-dot"></i> ${post.location}</span>`:''}</div></div><button class="icon-btn"><i class="fa-solid fa-ellipsis"></i></button></header>
       <div class="post-media-box"><img src="${post.image}" alt=""><div class="like-heart-anim"><i class="fa-solid fa-heart"></i></div></div>
-      <div class="post-actions">
-        <div class="action-group">
-          <button class="icon-btn btn-like ${isLiked ? 'liked' : ''}" data-action="like"><i class="${isLiked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'}"></i></button>
-          <button class="icon-btn" data-action="focus-comment"><i class="fa-regular fa-comment"></i></button>
-          <button class="icon-btn" data-action="share"><i class="fa-regular fa-paper-plane"></i></button>
-        </div>
-        <button class="icon-btn btn-save ${post.saved ? 'saved' : ''}" data-action="save"><i class="${post.saved ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark'}"></i></button>
-      </div>
-      <div class="post-info">
-        <span class="likes-count">${isLiked ? post.likes + 1 : post.likes} sviđanja</span>
-        <div class="post-caption"><strong>${post.author}</strong> ${post.caption}</div>
-        <div class="post-comments-list">${(post.comments||[]).map(c => `<div class="comment-item" style="font-size:13px;margin-top:4px;"><strong>${c.user}</strong> ${c.text}</div>`).join('')}</div>
-        <span class="post-time">${post.timeAgo}</span>
-      </div>
-      <div class="post-add-comment"><input type="text" placeholder="Dodaj komentar..." class="input-comment" data-action="comment-input"><button class="btn-post-comment" data-action="submit-comment">Objavi</button></div>
+      <div class="post-actions"><div class="action-group"><button class="icon-btn btn-like ${isLiked?'liked':''}" data-act="like"><i class="${isLiked?'fa-solid fa-heart':'fa-regular fa-heart'}"></i></button><button class="icon-btn" data-act="cmfocus"><i class="fa-regular fa-comment"></i></button><button class="icon-btn" data-act="share"><i class="fa-regular fa-paper-plane"></i></button></div><button class="icon-btn btn-save ${post.saved?'saved':''}" data-act="save"><i class="${post.saved?'fa-solid fa-bookmark':'fa-regular fa-bookmark'}"></i></button></div>
+      <div class="post-info"><span class="likes-count"><strong>${displayLikes}</strong> sviđanja</span><div class="post-caption"><strong>${post.author}</strong> ${post.caption}</div><div class="post-comments-list">${(post.comments||[]).map(c=>`<div class="comment-item" style="font-size:13px;margin-top:4px;"><strong>${c.user}</strong> ${c.text}</div>`).join('')}</div><span class="post-time">${post.timeAgo}</span></div>
+      <div class="post-add-comment"><input type="text" placeholder="Dodaj komentar..." class="input-comment"><button class="btn-post-comment" data-act="submitcm">Objavi</button></div>
     `;
 
     const mediaBox = card.querySelector('.post-media-box');
@@ -105,52 +88,38 @@ export function renderPosts() {
     let lastTap = 0;
 
     const toggleLike = () => {
-      if (state.likedPosts.has(post.id)) {
-        state.likedPosts.delete(post.id);
+      const key = String(post.id);
+      if (state.likedPosts.has(key)) {
+        state.likedPosts.delete(key);
         if (post.likes > 0) post.likes--;
       } else {
-        state.likedPosts.add(post.id);
+        state.likedPosts.add(key);
         post.likes++;
       }
       likePostAPI(post.id);
-      playSound(state.likedPosts.has(post.id) ? 'like' : 'click');
+      state.saveLiked();
+      playSound(state.likedPosts.has(key) ? 'like' : 'click');
       renderPosts();
     };
 
-    if (mediaBox) {
-      mediaBox.onclick = () => {
-        const now = Date.now();
-        if (now - lastTap < 300 && now - lastTap > 0) {
-          if (!state.likedPosts.has(post.id)) {
-            state.likedPosts.add(post.id);
-            post.likes++;
-            likePostAPI(post.id);
-            playSound('like');
-            renderPosts();
-          }
-          if (heartAnim) { heartAnim.classList.add('pop'); setTimeout(() => heartAnim.classList.remove('pop'), 600); }
-        }
-        lastTap = now;
-      };
-    }
+    if (mediaBox) mediaBox.onclick = () => {
+      const now = Date.now();
+      if (now - lastTap < 300 && now - lastTap > 0) {
+        if (!state.likedPosts.has(String(post.id))) toggleLike();
+        if (heartAnim) { heartAnim.classList.add('pop'); setTimeout(() => heartAnim.classList.remove('pop'), 600); }
+      }
+      lastTap = now;
+    };
 
-    card.querySelectorAll('[data-action="like"]').forEach(btn => { btn.onclick = toggleLike; });
-    card.querySelectorAll('[data-action="save"]').forEach(btn => { btn.onclick = () => { post.saved = !post.saved; playSound('click'); renderPosts(); renderProfileGrid(); showToast(post.saved ? 'Sačuvano' : 'Uklonjeno iz sačuvanih'); }; });
-    card.querySelectorAll('[data-action="share"]').forEach(btn => { btn.onclick = () => { playSound('click'); navigator.clipboard?.writeText(window.location.href); showToast('Link kopiran!'); }; });
-    card.querySelectorAll('[data-action="focus-comment"]').forEach(btn => { btn.onclick = () => { playSound('click'); card.querySelector('.input-comment')?.focus(); }; });
+    card.querySelectorAll('[data-act="like"]').forEach(b => b.onclick = toggleLike);
+    card.querySelectorAll('[data-act="save"]').forEach(b => b.onclick = () => { post.saved=!post.saved; playSound('click'); renderPosts(); renderProfileGrid(); showToast(post.saved?'Sačuvano':'Uklonjeno'); });
+    card.querySelectorAll('[data-act="share"]').forEach(b => b.onclick = () => { playSound('click'); navigator.clipboard?.writeText(window.location.href); showToast('Link kopiran!'); });
+    card.querySelectorAll('[data-act="cmfocus"]').forEach(b => b.onclick = () => { playSound('click'); card.querySelector('.input-comment')?.focus(); });
 
     const input = card.querySelector('.input-comment');
-    const submitBtn = card.querySelector('[data-action="submit-comment"]');
-    const doComment = async () => {
-      const text = input.value.trim(); if (!text) return;
-      playSound('comment');
-      const r = await commentPostAPI(post.id, text);
-      post.comments.push(r?.comment || { id: 'c-'+Date.now(), user: state.currentUser.username, text });
-      input.value = '';
-      renderPosts();
-      showToast('Komentar sačuvan u bazi!');
-    };
-    if (submitBtn && input) { submitBtn.onclick = doComment; input.onkeypress = (e) => { if (e.key === 'Enter') doComment(); }; }
+    const submitBtn = card.querySelector('[data-act="submitcm"]');
+    const doComment = async () => { const t = input.value.trim(); if(!t)return; playSound('comment'); const r = await commentPostAPI(post.id,t); post.comments.push(r?.comment||{id:'c-'+Date.now(),user:state.currentUser.username,text:t}); input.value=''; renderPosts(); showToast('Komentar sačuvan!'); };
+    if (submitBtn&&input) { submitBtn.onclick = doComment; input.onkeypress = e => { if(e.key==='Enter') doComment(); }; }
 
     container.appendChild(card);
   });
@@ -159,9 +128,9 @@ export function renderPosts() {
 export function renderSuggestions() {
   const c = document.getElementById('suggestions-list'); if (!c) return; c.innerHTML = '';
   state.suggestions.forEach(s => {
-    const i = document.createElement('div'); i.className = 'sugg-item';
-    i.innerHTML = `<div class="sugg-user"><img src="${s.avatar}" alt=""><div class="sugg-info"><span class="sugg-name">${s.username}</span><span class="sugg-sub">Popularno u blizini</span></div></div><button class="btn-text btn-follow-toggle">Zaprati</button>`;
-    i.querySelector('.btn-follow-toggle').onclick = () => { playSound('click'); const b = i.querySelector('.btn-follow-toggle'); b.textContent = b.textContent === 'Zaprati' ? 'Pratiš' : 'Zaprati'; b.style.color = b.textContent==='Pratiš'?'var(--text-muted)':'var(--primary-blue)'; };
+    const i = document.createElement('div'); i.className='sugg-item';
+    i.innerHTML = `<div class="sugg-user"><img src="${s.avatar}"><div class="sugg-info"><span class="sugg-name">${s.username}</span><span class="sugg-sub">Popularno u blizini</span></div></div><button class="btn-text btn-follow-toggle">Zaprati</button>`;
+    i.querySelector('.btn-follow-toggle').onclick = () => { const b=i.querySelector('.btn-follow-toggle'); b.textContent = b.textContent==='Zaprati'?'Pratiš':'Zaprati'; b.style.color = b.textContent==='Pratiš'?'var(--text-muted)':'var(--primary-blue)'; };
     c.appendChild(i);
   });
 }
