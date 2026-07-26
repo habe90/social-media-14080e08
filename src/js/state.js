@@ -67,6 +67,8 @@ export const state = {
   // Prijedlozi za praćenje
   suggestions: [],
 
+  likedPosts: new Set(),
+  likedReels: new Set(),
   activeChatId: null,
   activeReelCommentId: null,
 
