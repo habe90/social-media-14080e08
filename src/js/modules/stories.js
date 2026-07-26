@@ -16,16 +16,38 @@ export async function loadStoriesFromBackend() {
   if (backendStories && Array.isArray(backendStories)) {
     const storyGroupMap = {};
     backendStories.forEach(s => {
-      const uname = s.username || 'halil_official';
+      const uname = s.username || 'nepoznato';
       if (!storyGroupMap[uname]) {
-        storyGroupMap[uname] = { id: 'story-' + uname, isMe: uname === state.currentUser.username, username: uname === state.currentUser.username ? 'Vaša priča' : uname, avatar: s.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80', hasUnseen: true, slides: [] };
+        storyGroupMap[uname] = {
+          id: 'story-' + uname,
+          isMe: state.currentUser.loggedIn && uname === state.currentUser.username,
+          username: (state.currentUser.loggedIn && uname === state.currentUser.username) ? 'Vaša priča' : uname,
+          avatar: s.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+          hasUnseen: true,
+          slides: []
+        };
       }
-      storyGroupMap[uname].slides.push({ id: s.id, media: s.media_url || s.media, time: s.created_at ? new Date(s.created_at).toLocaleDateString('bs-BA') : 'Upravo', text: s.text || '' });
+      storyGroupMap[uname].slides.push({
+        id: s.id,
+        media: s.media_url || s.media,
+        time: s.created_at ? new Date(s.created_at).toLocaleDateString('bs-BA') : 'Upravo',
+        text: s.text || ''
+      });
     });
     state.stories = Object.values(storyGroupMap);
   }
   let myStory = state.stories.find(s => s.isMe);
-  if (!myStory) { myStory = { id: 'my-story', isMe: true, username: 'Vaša priča', avatar: state.currentUser.avatar, hasUnseen: false, slides: [] }; state.stories.unshift(myStory); }
+  if (!myStory && state.currentUser.loggedIn) {
+    myStory = {
+      id: 'my-story',
+      isMe: true,
+      username: 'Vaša priča',
+      avatar: state.currentUser.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+      hasUnseen: false,
+      slides: []
+    };
+    state.stories.unshift(myStory);
+  }
 }
 
 export function renderStories() {
