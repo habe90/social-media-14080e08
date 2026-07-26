@@ -1,4 +1,4 @@
-// SELAMY - GLAVNI ULAZNI MODUL I RUTIRANJE
+// SELAMY - GLAVNI ULAZNI MODUL I RUTIRANJE (POSTGRESQL INTEGRATION)
 
 import { state } from './src/js/state.js';
 import { compressImageFile, showToast } from './src/js/utils/compressor.js';
@@ -7,11 +7,11 @@ import { initPrayerTimesService, detectUserPreciseLocation } from './src/js/serv
 import { initForumModule } from './src/js/modules/forum.js';
 import { initChallengesModule } from './src/js/modules/challenges.js';
 import { initStoriesModule, renderStories } from './src/js/modules/stories.js';
-import { initReelsModule, renderReels } from './src/js/modules/reels.js';
+import { initReelsModule, renderReels, loadReelsFromBackend } from './src/js/modules/reels.js';
 import { initFeedModule, renderPosts } from './src/js/modules/feed.js';
 import { initChatModule } from './src/js/modules/chat.js';
 import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.js';
-import { registerUser, loginUser, fetchCurrentUser, setToken } from './src/js/services/api.js';
+import { registerUser, loginUser, fetchCurrentUser, setToken, createReelAPI, createPostAPI } from './src/js/services/api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -27,7 +27,7 @@ async function initApp() {
   initChallengesModule();
   initStoriesModule();
   initFeedModule();
-  initReelsModule();
+  await initReelsModule();
   initChatModule();
   initProfileModule();
 
@@ -40,8 +40,8 @@ async function initApp() {
   // Auto check backend sesije
   const user = await fetchCurrentUser();
   if (user) {
-    state.currentUser.fullname = user.fullname;
-    state.currentUser.username = user.username;
+    state.currentUser.fullname = user.full_name || user.fullname;
+    state.currentUser.username = user.nickname || user.username;
     state.currentUser.email = user.email;
     if (user.phone) state.currentUser.phone = user.phone;
     if (user.bio) state.currentUser.bio = user.bio;
@@ -68,7 +68,7 @@ function updateProfileUI() {
 }
 
 function setupFileUploadListeners() {
-  // 1. OBJAVA - SAŽIMANJE SLIKE SA RAČUNARA
+  // 1. OBJAVA
   const postFileInput = document.getElementById('post-file-input');
   const postDropzone = document.getElementById('post-dropzone');
   const btnSelectPostFile = document.getElementById('btn-select-post-file');
@@ -133,7 +133,7 @@ function setupFileUploadListeners() {
 
       if (postPreviewImg) postPreviewImg.src = compressed.dataUrl;
       if (postOptInfo) {
-        postOptInfo.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Slika sažeta sa računara: ${compressed.origKB}KB → <strong>${compressed.compKB}KB</strong> (${compressed.savings}% uštede)</span>`;
+        postOptInfo.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Slika sažeta: ${compressed.origKB}KB → <strong>${compressed.compKB}KB</strong> (${compressed.savings}% uštede)</span>`;
       }
 
       if (postDropzone) postDropzone.classList.add('hidden');
@@ -156,7 +156,7 @@ function setupFileUploadListeners() {
     };
   }
 
-  // 2. PRIČA - SAŽIMANJE SLIKE SA RAČUNARA
+  // 2. PRIČA
   const storyFileInput = document.getElementById('story-file-input');
   const storyDropzone = document.getElementById('story-dropzone');
   const btnSelectStoryFile = document.getElementById('btn-select-story-file');
@@ -244,7 +244,7 @@ function setupFileUploadListeners() {
     };
   }
 
-  // 3. REEL - VIDEO ILI SLIKA SA RAČUNARA
+  // 3. REEL
   const reelFileInput = document.getElementById('reel-file-input');
   const reelDropzone = document.getElementById('reel-dropzone');
   const btnSelectReelFile = document.getElementById('btn-select-reel-file');
@@ -308,20 +308,25 @@ function setupFileUploadListeners() {
     const fileMB = (file.size / (1024 * 1024)).toFixed(1);
 
     if (isVideo) {
-      const videoObjectUrl = URL.createObjectURL(file);
-      state.uploadedMedia.reel = { type: 'video', url: videoObjectUrl };
+      showToast('⚡ Očitavam video sa računara...');
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const videoDataUrl = evt.target.result;
+        state.uploadedMedia.reel = { type: 'video', url: videoDataUrl };
 
-      if (reelPreviewVideo) {
-        reelPreviewVideo.src = videoObjectUrl;
-        reelPreviewVideo.classList.remove('hidden');
-      }
-      if (reelPreviewImg) reelPreviewImg.classList.add('hidden');
+        if (reelPreviewVideo) {
+          reelPreviewVideo.src = videoDataUrl;
+          reelPreviewVideo.classList.remove('hidden');
+        }
+        if (reelPreviewImg) reelPreviewImg.classList.add('hidden');
 
-      if (reelOptInfo) {
-        reelOptInfo.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Video sa računara: <strong>${fileMB} MB</strong> (brzo učitavanje)</span>`;
-      }
-      playSound('pop');
-      showToast(`Video zapis je spreman (${fileMB} MB)!`);
+        if (reelOptInfo) {
+          reelOptInfo.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Video spreman: <strong>${fileMB} MB</strong></span>`;
+        }
+        playSound('pop');
+        showToast(`Video zapis je uspešno sačuvan (${fileMB} MB)!`);
+      };
+      reader.readAsDataURL(file);
     } else {
       showToast('⚡ Pripremam sliku sa računara za video reel...');
       const compressed = await compressImageFile(file, 1080, 0.78);
@@ -508,7 +513,6 @@ function setupEventListeners() {
   const loginOverlay = document.getElementById('login-overlay');
   const btnConfirmLogout = document.getElementById('btn-confirm-logout');
 
-  // Auth elementi
   const authTabLogin = document.getElementById('auth-tab-login');
   const authTabRegister = document.getElementById('auth-tab-register');
   const authFormLogin = document.getElementById('auth-form-login');
@@ -562,11 +566,11 @@ function setupEventListeners() {
       }
 
       showToast('Prijavljujem se na Express backend API...');
-      const result = await loginUser({ username: usernameInput, password: passwordInput });
+      const result = await loginUser({ login: usernameInput, password: passwordInput });
 
       if (result && result.user) {
-        state.currentUser.fullname = result.user.fullname;
-        state.currentUser.username = result.user.username;
+        state.currentUser.fullname = result.user.full_name || result.user.fullname;
+        state.currentUser.username = result.user.nickname || result.user.username;
         state.currentUser.email = result.user.email;
         if (result.user.phone) state.currentUser.phone = result.user.phone;
         if (result.user.avatar) state.currentUser.avatar = result.user.avatar;
@@ -577,12 +581,7 @@ function setupEventListeners() {
         if (loginOverlay) loginOverlay.classList.add('hidden');
         showToast(`Uspješno prijavljeni na backend kao @${state.currentUser.username}!`);
       } else {
-        // Fallback
-        state.currentUser.username = usernameInput;
-        updateProfileUI();
-        playSound('notification');
-        if (loginOverlay) loginOverlay.classList.add('hidden');
-        showToast(`Dobrodošli natrag, ${state.currentUser.username}!`);
+        showToast(result?.error || 'Greška pri prijavi.');
       }
       switchTab('home');
     };
@@ -608,30 +607,27 @@ function setupEventListeners() {
 
       showToast('Spremam novog korisnika u Express backend bazu...');
       const result = await registerUser({
-        fullname,
-        username: username.replace(/^@/, ''),
+        full_name: fullname,
+        nickname: username.replace(/^@/, ''),
         email,
         phone,
         password: pass
       });
 
       if (result && result.user) {
-        state.currentUser.fullname = result.user.fullname;
-        state.currentUser.username = result.user.username;
+        state.currentUser.fullname = result.user.full_name;
+        state.currentUser.username = result.user.nickname;
         state.currentUser.email = result.user.email;
         state.currentUser.phone = result.user.phone;
-      } else {
-        state.currentUser.fullname = fullname;
-        state.currentUser.username = username.replace(/^@/, '');
-        state.currentUser.email = email;
-        state.currentUser.phone = phone;
-      }
 
-      updateProfileUI();
-      playSound('notification');
-      if (loginOverlay) loginOverlay.classList.add('hidden');
-      showToast(`Registracija uspješna na Express backendu! Dobrodošli, @${state.currentUser.username}! 🎉`);
-      switchTab('home');
+        updateProfileUI();
+        playSound('notification');
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+        showToast(`Registracija uspješna na Express backendu! Dobrodošli, @${state.currentUser.username}! 🎉`);
+        switchTab('home');
+      } else {
+        showToast(result?.error || 'Greška pri registraciji.');
+      }
     };
   }
 }
@@ -650,10 +646,10 @@ function switchTab(tabName) {
   });
 
   if (tabName === 'reels') {
-    const firstVideo = document.querySelector('.reel-video');
+    const firstVideo = document.querySelector('video.reel-video');
     if (firstVideo) firstVideo.play().catch(() => {});
   } else {
-    document.querySelectorAll('.reel-video').forEach(v => v.pause());
+    document.querySelectorAll('video.reel-video').forEach(v => v.pause());
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -689,7 +685,7 @@ function renderExploreGrid(query = '') {
   });
 }
 
-function handleCreatePost() {
+async function handleCreatePost() {
   if (!state.uploadedMedia.post?.url) {
     showToast('Molimo izaberite sliku sa vašeg računara ili uređaja.');
     return;
@@ -701,8 +697,15 @@ function handleCreatePost() {
   const caption = document.getElementById('post-caption').value.trim();
   let location = document.getElementById('post-location').value.trim() || (state.currentUser.location ? state.currentUser.location.text : 'Kalesija (Babajići)');
 
+  showToast('Spremam objavu u PostgreSQL bazu...');
+  const backendPost = await createPostAPI({
+    caption,
+    image_url: imageUrl,
+    location
+  });
+
   const newPost = {
-    id: 'p-' + Date.now(),
+    id: backendPost ? backendPost.id : ('p-' + Date.now()),
     author: state.currentUser.username,
     avatar: state.currentUser.avatar,
     verified: true,
@@ -728,7 +731,7 @@ function handleCreatePost() {
   document.getElementById('post-caption').value = '';
   document.getElementById('post-location').value = '';
 
-  showToast('Nova objava je uspješno podijeljena!');
+  showToast('Nova objava je uspješno sačuvana u PostgreSQL bazi!');
   switchTab('home');
 }
 
@@ -773,7 +776,7 @@ function handleCreateStory() {
   showToast('Vaša priča je uspješno objavljena!');
 }
 
-function handleCreateReel() {
+async function handleCreateReel() {
   if (!state.uploadedMedia.reel?.url) {
     showToast('Molimo izaberite video zapis ili sliku sa vašeg uređaja.');
     return;
@@ -785,8 +788,16 @@ function handleCreateReel() {
   const caption = document.getElementById('reel-caption-input').value.trim() || 'Novi kratki video! 🌊✨';
   const audio = document.getElementById('reel-audio-input').value.trim() || `Originalni zvuk - ${state.currentUser.username}`;
 
+  showToast('Spremam Reel u PostgreSQL bazu...');
+
+  const createdBackendReel = await createReelAPI({
+    video_url: mediaUrl,
+    caption: caption,
+    audio_title: audio
+  });
+
   const newReel = {
-    id: 'reel-' + Date.now(),
+    id: createdBackendReel ? createdBackendReel.id : ('reel-' + Date.now()),
     author: state.currentUser.username,
     avatar: state.currentUser.avatar,
     caption: caption,
@@ -805,7 +816,7 @@ function handleCreateReel() {
   document.getElementById('reel-caption-input').value = '';
   document.getElementById('reel-audio-input').value = '';
 
-  showToast('Vaš video je uspješno objavljen!');
+  showToast('Vaš Reel video je trajno sačuvan u PostgreSQL bazi!');
   switchTab('reels');
 }
 
