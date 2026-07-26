@@ -2,8 +2,16 @@
 <html lang="bs">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080c14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Selamy">
   <title>Selamy - Islamska mreža i zajednica</title>
+  
+  <!-- Manifest for PWA Add to Home Screen -->
+  <link rel="manifest" href="/manifest.json">
+  
   <!-- FontAwesome & Google Fonts -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +22,7 @@
 <body>
   <div id="app" class="app-container">
 
-    <!-- BOČNA NAVIGACIJA -->
+    <!-- DESKTOP BOČNA NAVIGACIJA (Prikazuje se samo na ekranima >= 768px) -->
     <aside class="sidebar">
       <div class="sidebar-brand" data-tab="home">
         <div class="logo-icon"><i class="fa-solid fa-paper-plane"></i></div>
@@ -67,19 +75,18 @@
         </a>
         <div class="nav-item" style="font-size: 13px; color: var(--text-muted); cursor: default;">
           <i class="fa-solid fa-shield-halved"></i>
-          <span>Mreža Selamy v3.0</span>
+          <span>Mreža Selamy v3.5</span>
         </div>
       </div>
     </aside>
 
-    <!-- MOBILNO ZAGLAVLJE -->
+    <!-- MOBILNO ZAGLAVLJE (Prikazuje se samo na mobilnom < 768px) -->
     <header class="mobile-header">
-      <div class="logo-text" data-tab="home" style="cursor: pointer;">Selamy</div>
+      <div class="logo-text" data-tab="home">Selamy</div>
       <div class="mobile-actions">
         <button class="icon-btn" id="btn-mobile-location" title="Detektuj preciznu GPS lokaciju"><i class="fa-solid fa-location-crosshairs" style="color: var(--primary-blue);"></i></button>
+        <button class="icon-btn nav-item" data-tab="notifications" title="Obavještenja"><i class="fa-solid fa-heart"></i><span class="dot"></span></button>
         <button class="icon-btn" id="btn-mobile-create" title="Kreiraj sadržaj"><i class="fa-regular fa-square-plus"></i></button>
-        <button class="icon-btn nav-item" data-tab="forum" title="Forum"><i class="fa-solid fa-comments"></i></button>
-        <button class="icon-btn nav-item" data-tab="messages" title="Poruke"><i class="fa-regular fa-paper-plane"></i><span class="badge">2</span></button>
       </div>
     </header>
 
@@ -147,7 +154,7 @@
           <div class="forum-hero">
             <div class="forum-hero-text">
               <h2>Forum i zajednica 💬</h2>
-              <p>Mijesto za korisne savjete, nasihat, pitanja, razmjenu znanja i humanitarne akcije.</p>
+              <p>Mjesto za korisne savjete, nasihat, pitanja, razmjenu znanja i humanitarne akcije.</p>
             </div>
             <button class="btn-primary" id="btn-open-new-topic"><i class="fa-solid fa-pen-to-square"></i> Pokreni novu temu</button>
           </div>
@@ -304,16 +311,30 @@
 
     </main>
 
-    <!-- MOBILNA DONJA TRAKA -->
+    <!-- MOBILNA DONJA TRAKA (Prikazuje se samo na mobilnom < 768px, fiksirana za dno sa ikonicom + opisom) -->
     <nav class="mobile-nav">
-      <a href="#" class="nav-item active" data-tab="home"><i class="fa-solid fa-house"></i></a>
-      <a href="#" class="nav-item" data-tab="forum"><i class="fa-solid fa-comments"></i></a>
-      <a href="#" class="nav-item" data-tab="reels"><i class="fa-solid fa-clapperboard"></i></a>
-      <a href="#" class="nav-item" data-tab="messages"><i class="fa-regular fa-paper-plane"></i></a>
+      <a href="#" class="nav-item active" data-tab="home">
+        <i class="fa-solid fa-house"></i>
+        <span>Početna</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="forum">
+        <i class="fa-solid fa-comments"></i>
+        <span>Forum</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="reels">
+        <i class="fa-solid fa-clapperboard"></i>
+        <span>Reels</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="messages">
+        <i class="fa-solid fa-paper-plane"></i>
+        <span>Poruke</span>
+        <span class="badge" id="mobile-unread-count">2</span>
+      </a>
       <a href="#" class="nav-item" data-tab="profile">
         <div class="mini-avatar">
           <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80" alt="Profil">
         </div>
+        <span>Profil</span>
       </a>
     </nav>
 
