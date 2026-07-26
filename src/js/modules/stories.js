@@ -1,12 +1,58 @@
-// SELAMY - STORIES MODULE (CREATOR & INTERACTIVE VIEWER)
+// SELAMY - STORIES MODULE (CREATOR & INTERACTIVE VIEWER - POSTGRESQL SYNC)
 
 import { state } from '../state.js';
 import { showToast } from '../utils/compressor.js';
 import { playSound } from '../utils/sound.js';
+import { fetchStoriesAPI } from '../services/api.js';
 
-export function initStoriesModule() {
+export async function initStoriesModule() {
+  await loadStoriesFromBackend();
   renderStories();
   setupStoryControls();
+}
+
+export async function loadStoriesFromBackend() {
+  const backendStories = await fetchStoriesAPI();
+  if (backendStories && Array.isArray(backendStories)) {
+    // Group stories by username
+    const storyGroupMap = {};
+
+    backendStories.forEach(s => {
+      const uname = s.username || 'halil_official';
+      if (!storyGroupMap[uname]) {
+        storyGroupMap[uname] = {
+          id: 'story-' + uname,
+          isMe: uname === state.currentUser.username,
+          username: uname === state.currentUser.username ? 'Vaša priča' : uname,
+          avatar: s.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+          hasUnseen: true,
+          slides: []
+        };
+      }
+      storyGroupMap[uname].slides.push({
+        id: s.id,
+        media: s.media_url || s.media,
+        time: s.created_at ? new Date(s.created_at).toLocaleDateString('bs-BA') : 'Upravo',
+        text: s.text || ''
+      });
+    });
+
+    state.stories = Object.values(storyGroupMap);
+  }
+
+  // Ensure "Vaša priča" is always present as first item
+  let myStory = state.stories.find(s => s.isMe);
+  if (!myStory) {
+    myStory = {
+      id: 'my-story',
+      isMe: true,
+      username: 'Vaša priča',
+      avatar: state.currentUser.avatar,
+      hasUnseen: false,
+      slides: []
+    };
+    state.stories.unshift(myStory);
+  }
 }
 
 export function renderStories() {
@@ -32,7 +78,7 @@ export function renderStories() {
       `;
       storyEl.onclick = () => {
         playSound('click');
-        if (story.slides.length > 0) {
+        if (story.slides && story.slides.length > 0) {
           openStoryModal(idx);
         } else {
           const modal = document.getElementById('create-modal');
