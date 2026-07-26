@@ -12,12 +12,48 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'selamy_jwt_secret_key_2025';
 
 app.use(cors());
-app.use(express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '30mb' }));
+app.use(express.urlencoded({ limit: '30mb', extended: true }));
 
 // Inicijalizacija PostgreSQL Baze
-initDB();
+initDB().then(() => seedDefaultData());
 
-// Middleware za verifikaciju JWT tokena
+// Inicijalno popunjavanje baze ako je prazna
+async function seedDefaultData() {
+  try {
+    const userRes = await pool.query('SELECT id FROM users WHERE nickname = $1', ['halil_official']);
+    if (userRes.rows.length === 0) return;
+    const userId = userRes.rows[0].id;
+
+    // Provera za Reels
+    const reelsCount = await pool.query('SELECT COUNT(*) FROM reels');
+    if (parseInt(reelsCount.rows[0].count, 10) === 0) {
+      await pool.query(`
+        INSERT INTO reels (user_id, video_url, caption, audio_title, likes_count)
+        VALUES 
+        ($1, 'https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-1232-large.mp4', 'Kratki vodič za noćnu fotografiju u gradu 🌙📸', 'Originalni zvuk - halil_official', 1240),
+        ($1, 'https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4', 'Šetnja uz obalu u zalazak sunca 🌊 Spektakl prirode!', 'Zalazak sunca 🎷', 3410)
+      `, [userId]);
+      console.log('✅ Inicijalni Reels zapisi ubaci u PostgreSQL bazu');
+    }
+
+    // Provera za Posts
+    const postsCount = await pool.query('SELECT COUNT(*) FROM posts');
+    if (parseInt(postsCount.rows[0].count, 10) === 0) {
+      await pool.query(`
+        INSERT INTO posts (user_id, caption, image_url, location, likes_count)
+        VALUES 
+        ($1, 'Predivno popodne u prirodi uz kafu i druženje! ☕✨ Kakvi su vaši planovi?', 'https://images.unsplash.com/photo-1563720223185-11003d516935?w=800&auto=format&fit=crop&q=80', 'Kalesija (Babajići)', 342),
+        ($1, 'Miris mora i beskrajno plavetnilo. Nema ničeg opuštajućeg od zvukova talasa 🌊💙 #Selamy', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80', 'Neum, BiH', 890)
+      `, [userId]);
+      console.log('✅ Inicijalne Objave ubacene u PostgreSQL bazu');
+    }
+  } catch (err) {
+    console.error('Seed error:', err.message);
+  }
+}
+
+// Middleware za verifikaciju JWT tokena (opciono ili sa fallback-om)
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -30,6 +66,28 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// Opcioni auth middleware (ako nema tokena, koristi podrazumevanog halil_official)
+async function optionalAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token) {
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (!err) req.user = user;
+    });
+  }
+
+  if (!req.user) {
+    try {
+      const userRes = await pool.query('SELECT id, nickname FROM users WHERE nickname = $1', ['halil_official']);
+      if (userRes.rows.length > 0) {
+        req.user = { id: userRes.rows[0].id, nickname: userRes.rows[0].nickname };
+      }
+    } catch (e) {}
+  }
+  next();
+}
+
 // Health Check API
 app.get('/api/health', (req, res) => {
   res.json({ name: 'Selamy PostgreSQL API', status: 'ok', version: '3.0' });
@@ -39,7 +97,6 @@ app.get('/api/health', (req, res) => {
 // 1. AUTH RUTI
 // -------------------------------------------------------------
 
-// POST /api/auth/register
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { full_name, nickname, email, phone, password } = req.body;
@@ -62,7 +119,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     const salt = bcrypt.genSaltSync(10);
     const password_hash = bcrypt.hashSync(password, salt);
-    const defaultAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80';
+    const defaultAvatar = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80';
 
     const insertRes = await pool.query(`
       INSERT INTO users (full_name, nickname, email, phone, password_hash, avatar, bio, location)
@@ -89,7 +146,6 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { login, password } = req.body;
@@ -124,7 +180,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// GET /api/auth/me
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
     const userRes = await pool.query(
@@ -139,7 +194,6 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
-// PUT /api/users/profile
 app.put('/api/users/profile', authenticateToken, async (req, res) => {
   try {
     const { full_name, bio, location, avatar, email, phone } = req.body;
@@ -165,14 +219,14 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 2. POSTS & CONTENT RUTI
+// 2. POSTS RUTI
 // -------------------------------------------------------------
 
-// GET /api/posts
 app.get('/api/posts', async (req, res) => {
   try {
     const postsRes = await pool.query(`
-      SELECT posts.*, users.nickname, users.full_name, users.avatar
+      SELECT posts.id, posts.caption, posts.image_url, posts.location, posts.likes_count, posts.created_at,
+             users.nickname AS author, users.full_name, users.avatar
       FROM posts
       JOIN users ON posts.user_id = users.id
       ORDER BY posts.created_at DESC
@@ -183,33 +237,38 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-// POST /api/posts
-app.post('/api/posts', authenticateToken, async (req, res) => {
+app.post('/api/posts', optionalAuth, async (req, res) => {
   try {
     const { caption, image_url, location } = req.body;
     if (!image_url) return res.status(400).json({ error: 'Slika je obavezna' });
 
+    const userId = req.user ? req.user.id : 1;
+
     const insertRes = await pool.query(`
       INSERT INTO posts (user_id, caption, image_url, location)
       VALUES ($1, $2, $3, $4)
-      RETURNING id
-    `, [req.user.id, caption || '', image_url, location || 'Kalesija (Babajići)']);
+      RETURNING id, caption, image_url, location, likes_count, created_at
+    `, [userId, caption || '', image_url, location || 'Kalesija (Babajići)']);
 
-    const newPostId = insertRes.rows[0].id;
-    const postRes = await pool.query(`
-      SELECT posts.*, users.nickname, users.full_name, users.avatar 
-      FROM posts JOIN users ON posts.user_id = users.id 
-      WHERE posts.id = $1
-    `, [newPostId]);
+    const newPost = insertRes.rows[0];
+    const userRes = await pool.query('SELECT nickname, full_name, avatar FROM users WHERE id = $1', [userId]);
+    const u = userRes.rows[0] || { nickname: 'halil_official', avatar: '' };
 
-    res.json({ success: true, post: postRes.rows[0] });
+    res.json({
+      success: true,
+      post: {
+        ...newPost,
+        author: u.nickname,
+        avatar: u.avatar
+      }
+    });
   } catch (err) {
+    console.error('Post error:', err);
     res.status(500).json({ error: 'Greška pri čuvanju objave' });
   }
 });
 
-// POST /api/posts/:id/like
-app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
+app.post('/api/posts/:id/like', async (req, res) => {
   try {
     await pool.query('UPDATE posts SET likes_count = likes_count + 1 WHERE id = $1', [req.params.id]);
     const postRes = await pool.query('SELECT likes_count FROM posts WHERE id = $1', [req.params.id]);
@@ -223,11 +282,11 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
 // 3. STORIES RUTI
 // -------------------------------------------------------------
 
-// GET /api/stories
 app.get('/api/stories', async (req, res) => {
   try {
     const storiesRes = await pool.query(`
-      SELECT stories.*, users.nickname, users.full_name, users.avatar
+      SELECT stories.id, stories.media_url, stories.text, stories.created_at,
+             users.nickname AS username, users.full_name, users.avatar
       FROM stories
       JOIN users ON stories.user_id = users.id
       ORDER BY stories.created_at DESC
@@ -238,26 +297,31 @@ app.get('/api/stories', async (req, res) => {
   }
 });
 
-// POST /api/stories
-app.post('/api/stories', authenticateToken, async (req, res) => {
+app.post('/api/stories', optionalAuth, async (req, res) => {
   try {
     const { media_url, text } = req.body;
     if (!media_url) return res.status(400).json({ error: 'Slika priče je obavezna' });
 
+    const userId = req.user ? req.user.id : 1;
+
     const insertRes = await pool.query(`
       INSERT INTO stories (user_id, media_url, text)
       VALUES ($1, $2, $3)
-      RETURNING id
-    `, [req.user.id, media_url, text || '']);
+      RETURNING id, media_url, text, created_at
+    `, [userId, media_url, text || '']);
 
-    const newStoryId = insertRes.rows[0].id;
-    const storyRes = await pool.query(`
-      SELECT stories.*, users.nickname, users.full_name, users.avatar
-      FROM stories JOIN users ON stories.user_id = users.id
-      WHERE stories.id = $1
-    `, [newStoryId]);
+    const newStory = insertRes.rows[0];
+    const userRes = await pool.query('SELECT nickname, avatar FROM users WHERE id = $1', [userId]);
+    const u = userRes.rows[0] || { nickname: 'halil_official', avatar: '' };
 
-    res.json({ success: true, story: storyRes.rows[0] });
+    res.json({
+      success: true,
+      story: {
+        ...newStory,
+        username: u.nickname,
+        avatar: u.avatar
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: 'Greška pri kreiranju priče' });
   }
@@ -267,11 +331,11 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
 // 4. REELS RUTI
 // -------------------------------------------------------------
 
-// GET /api/reels
 app.get('/api/reels', async (req, res) => {
   try {
     const reelsRes = await pool.query(`
-      SELECT reels.*, users.nickname, users.full_name, users.avatar
+      SELECT reels.id, reels.video_url, reels.caption, reels.audio_title, reels.likes_count, reels.created_at,
+             users.nickname AS author, users.full_name, users.avatar
       FROM reels
       JOIN users ON reels.user_id = users.id
       ORDER BY reels.created_at DESC
@@ -282,28 +346,49 @@ app.get('/api/reels', async (req, res) => {
   }
 });
 
-// POST /api/reels
-app.post('/api/reels', authenticateToken, async (req, res) => {
+app.post('/api/reels', optionalAuth, async (req, res) => {
   try {
     const { video_url, caption, audio_title } = req.body;
-    if (!video_url) return res.status(400).json({ error: 'Video je obavezan' });
+    if (!video_url) return res.status(400).json({ error: 'Video zapis ili slika za reel je obavezna' });
+
+    const userId = req.user ? req.user.id : 1;
 
     const insertRes = await pool.query(`
       INSERT INTO reels (user_id, video_url, caption, audio_title)
       VALUES ($1, $2, $3, $4)
-      RETURNING id
-    `, [req.user.id, video_url, caption || '', audio_title || 'Selamy Original Audio']);
+      RETURNING id, video_url, caption, audio_title, likes_count, created_at
+    `, [userId, video_url, caption || '', audio_title || 'Selamy Original Audio']);
 
-    const newReelId = insertRes.rows[0].id;
-    const reelRes = await pool.query(`
-      SELECT reels.*, users.nickname, users.full_name, users.avatar
-      FROM reels JOIN users ON reels.user_id = users.id
-      WHERE reels.id = $1
-    `, [newReelId]);
+    const newReel = insertRes.rows[0];
+    const userRes = await pool.query('SELECT nickname, avatar FROM users WHERE id = $1', [userId]);
+    const u = userRes.rows[0] || { nickname: 'halil_official', avatar: '' };
 
-    res.json({ success: true, reel: reelRes.rows[0] });
+    res.json({
+      success: true,
+      reel: {
+        id: newReel.id,
+        video: newReel.video_url,
+        caption: newReel.caption,
+        audio: newReel.audio_title,
+        likes: newReel.likes_count,
+        author: u.nickname,
+        avatar: u.avatar,
+        comments: []
+      }
+    });
   } catch (err) {
+    console.error('Create Reel error:', err);
     res.status(500).json({ error: 'Greška pri kreiranju reel-a' });
+  }
+});
+
+app.post('/api/reels/:id/like', async (req, res) => {
+  try {
+    await pool.query('UPDATE reels SET likes_count = likes_count + 1 WHERE id = $1', [req.params.id]);
+    const reelRes = await pool.query('SELECT likes_count FROM reels WHERE id = $1', [req.params.id]);
+    res.json({ success: true, likes_count: reelRes.rows[0] ? reelRes.rows[0].likes_count : 0 });
+  } catch (err) {
+    res.status(500).json({ error: 'Greška pri lajkovanju reel-a' });
   }
 });
 
@@ -311,11 +396,10 @@ app.post('/api/reels', authenticateToken, async (req, res) => {
 // 5. FORUM RUTI
 // -------------------------------------------------------------
 
-// GET /api/forum
 app.get('/api/forum', async (req, res) => {
   try {
     const forumRes = await pool.query(`
-      SELECT forum_topics.*, users.nickname, users.avatar
+      SELECT forum_topics.*, users.nickname AS author, users.avatar AS authorAvatar
       FROM forum_topics
       JOIN users ON forum_topics.user_id = users.id
       ORDER BY forum_topics.created_at DESC
@@ -326,28 +410,33 @@ app.get('/api/forum', async (req, res) => {
   }
 });
 
-// POST /api/forum/topics
-app.post('/api/forum/topics', authenticateToken, async (req, res) => {
+app.post('/api/forum/topics', optionalAuth, async (req, res) => {
   try {
     const { category, title, content } = req.body;
     if (!title || !content || !category) {
       return res.status(400).json({ error: 'Sva polja su obavezna' });
     }
 
+    const userId = req.user ? req.user.id : 1;
+
     const insertRes = await pool.query(`
       INSERT INTO forum_topics (user_id, category, title, content)
       VALUES ($1, $2, $3, $4)
-      RETURNING id
-    `, [req.user.id, category, title, content]);
+      RETURNING id, category, title, content, likes_count, replies_count, created_at
+    `, [userId, category, title, content]);
 
-    const newTopicId = insertRes.rows[0].id;
-    const topicRes = await pool.query(`
-      SELECT forum_topics.*, users.nickname, users.avatar
-      FROM forum_topics JOIN users ON forum_topics.user_id = users.id
-      WHERE forum_topics.id = $1
-    `, [newTopicId]);
+    const newTopic = insertRes.rows[0];
+    const userRes = await pool.query('SELECT nickname, avatar FROM users WHERE id = $1', [userId]);
+    const u = userRes.rows[0] || { nickname: 'halil_official', avatar: '' };
 
-    res.json({ success: true, topic: topicRes.rows[0] });
+    res.json({
+      success: true,
+      topic: {
+        ...newTopic,
+        author: u.nickname,
+        authorAvatar: u.avatar
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: 'Greška pri otvaranju teme' });
   }
