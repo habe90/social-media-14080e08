@@ -21,10 +21,10 @@ initDB();
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Autorizacija je obavezna' });
+  if (!token) return res.status(401).json({ error: 'Autorizacija je obavezna za ovu akciju' });
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Nevažeći ili istekao token' });
+    if (err) return res.status(401).json({ error: 'Nevažeći ili istekao token' });
     req.user = user;
     next();
   });
@@ -35,9 +35,10 @@ async function optionalAuth(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (token) {
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (!err) req.user = user;
-    });
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.user = decoded;
+    } catch (err) {}
   }
   if (!req.user) {
     try {
@@ -51,7 +52,7 @@ async function optionalAuth(req, res, next) {
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ name: 'Selamy PostgreSQL API', status: 'ok', version: '3.0' });
+  res.json({ name: 'Selamy PostgreSQL API', status: 'ok', version: '3.1' });
 });
 
 // ========= AUTH =========
@@ -109,14 +110,20 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Greška pri ažuriranju profila' }); }
 });
 
-// ========= POSTS + COMMENTS =========
-app.get('/api/posts', async (req, res) => {
+// ========= POSTS + COMMENTS + LIKES =========
+app.get('/api/posts', optionalAuth, async (req, res) => {
   try {
+    const currentUserId = req.user ? req.user.id : null;
+
     const postsRes = await pool.query(`
-      SELECT p.id, p.caption, p.image_url, p.location, p.likes_count, p.comments_count, p.created_at,
-             u.nickname AS author, u.full_name, u.avatar
-      FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC
-    `);
+      SELECT p.id, p.caption, p.image_url, p.location, p.comments_count, p.created_at,
+             u.nickname AS author, u.full_name, u.avatar,
+             (SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) AS likes_count,
+             CASE WHEN $1::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $1::int) ELSE false END AS liked_by_me
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      ORDER BY p.created_at DESC
+    `, [currentUserId]);
 
     const posts = [];
     for (const p of postsRes.rows) {
@@ -124,7 +131,7 @@ app.get('/api/posts', async (req, res) => {
       posts.push({ ...p, comments: commentsRes.rows });
     }
     res.json({ posts });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Greška pri učitavanju objava' }); }
+  } catch (err) { console.error('GET /api/posts error:', err); res.status(500).json({ error: 'Greška pri učitavanju objava' }); }
 });
 
 app.post('/api/posts', optionalAuth, async (req, res) => {
@@ -135,16 +142,47 @@ app.post('/api/posts', optionalAuth, async (req, res) => {
     const insertRes = await pool.query(`INSERT INTO posts (user_id, caption, image_url, location) VALUES ($1,$2,$3,$4) RETURNING id, caption, image_url, location, likes_count, comments_count, created_at`, [userId, caption||'', image_url, location||'Kalesija (Babajići)']);
     const newPost = insertRes.rows[0];
     const u = (await pool.query('SELECT nickname, full_name, avatar FROM users WHERE id=$1', [userId])).rows[0] || { nickname: 'halil_official', avatar: '' };
-    res.json({ success: true, post: { ...newPost, author: u.nickname, avatar: u.avatar, comments: [] } });
+    res.json({ success: true, post: { ...newPost, likes_count: 0, liked_by_me: false, author: u.nickname, avatar: u.avatar, comments: [] } });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Greška pri čuvanju objave' }); }
 });
 
-app.post('/api/posts/:id/like', async (req, res) => {
+app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
   try {
-    await pool.query('UPDATE posts SET likes_count = likes_count + 1 WHERE id = $1', [req.params.id]);
-    const r = await pool.query('SELECT likes_count FROM posts WHERE id = $1', [req.params.id]);
-    res.json({ success: true, likes_count: r.rows[0]?.likes_count || 0 });
-  } catch (err) { res.status(500).json({ error: 'Greška pri lajkovanju' }); }
+    const postId = parseInt(req.params.id, 10);
+    const userId = req.user.id;
+
+    if (isNaN(postId)) return res.status(400).json({ error: 'Nevažeći ID objave' });
+
+    // Check if post exists
+    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postId]);
+    if (postCheck.rows.length === 0) return res.status(404).json({ error: 'Objava nije pronađena' });
+
+    // Check if like exists
+    const existing = await pool.query('SELECT id FROM likes WHERE post_id = $1 AND user_id = $2', [postId, userId]);
+    let liked = false;
+
+    if (existing.rows.length > 0) {
+      // Unlike
+      await pool.query('DELETE FROM likes WHERE post_id = $1 AND user_id = $2', [postId, userId]);
+      liked = false;
+    } else {
+      // Like
+      await pool.query('INSERT INTO likes (post_id, user_id) VALUES ($1, $2) ON CONFLICT (post_id, user_id) DO NOTHING', [postId, userId]);
+      liked = true;
+    }
+
+    // Get exact count from likes table
+    const countRes = await pool.query('SELECT COUNT(*)::int AS count FROM likes WHERE post_id = $1', [postId]);
+    const likes_count = countRes.rows[0]?.count || 0;
+
+    // Update posts cache column
+    await pool.query('UPDATE posts SET likes_count = $1 WHERE id = $2', [likes_count, postId]);
+
+    res.json({ success: true, liked, likes_count });
+  } catch (err) {
+    console.error('Like toggle error:', err);
+    res.status(500).json({ error: 'Greška pri obradi lajka' });
+  }
 });
 
 app.post('/api/posts/:id/comment', optionalAuth, async (req, res) => {
@@ -254,7 +292,6 @@ app.post('/api/forum/topics', optionalAuth, async (req, res) => {
     res.json({ success: true, topic: { ...insertRes.rows[0], author: u.nickname, authorAvatar: u.avatar } });
   } catch (err) { res.status(500).json({ error: 'Greška pri otvaranju teme' }); }
 });
-
 
 // Serving Static Frontend
 const distPath = path.resolve('dist');
