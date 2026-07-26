@@ -11,7 +11,7 @@ import { initReelsModule, renderReels, loadReelsFromBackend } from './src/js/mod
 import { initFeedModule, renderPosts, loadPostsFromBackend } from './src/js/modules/feed.js';
 import { initChatModule } from './src/js/modules/chat.js';
 import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.js';
-import { registerUser, loginUser, fetchCurrentUser, setToken, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
+import { registerUser, loginUser, fetchCurrentUser, setToken, createReelAPI, createPostAPI, createStoryAPI, commentPostAPI, commentReelAPI, commentStoryAPI } from './src/js/services/api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
