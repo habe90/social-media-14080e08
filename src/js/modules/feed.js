@@ -24,7 +24,8 @@ export async function loadPostsFromBackend() {
       location: p.location || '',
       image: p.image_url || p.image,
       caption: p.caption || '',
-      likes: p.likes_count || 0,
+      likes: parseInt(p.likes_count, 10) || 0,
+      likedByMe: Boolean(p.liked_by_me),
       saved: false,
       timeAgo: p.created_at ? (()=>{const d=new Date(p.created_at);return d.toLocaleDateString('bs-BA')})() : 'Upravo',
       comments: (p.comments || []).map(c => ({ id: c.id, user: c.user, text: c.text }))
@@ -69,8 +70,8 @@ export function renderPosts() {
   }
 
   state.posts.forEach((post) => {
-    const isLiked = state.likedPosts.has(String(post.id));
-    const displayLikes = post.likes + (isLiked ? 1 : 0);
+    const isLiked = post.likedByMe;
+    const displayLikes = post.likes;
 
     const card = document.createElement('article');
     card.className = 'post-card';
@@ -86,26 +87,40 @@ export function renderPosts() {
     const mediaBox = card.querySelector('.post-media-box');
     const heartAnim = card.querySelector('.like-heart-anim');
     let lastTap = 0;
+    let isLiking = false;
 
-    const toggleLike = () => {
-      const key = String(post.id);
-      if (state.likedPosts.has(key)) {
-        state.likedPosts.delete(key);
-        if (post.likes > 0) post.likes--;
-      } else {
-        state.likedPosts.add(key);
-        post.likes++;
+    const toggleLike = async () => {
+      if (isLiking) return;
+      isLiking = true;
+
+      const likeBtn = card.querySelector('[data-act="like"]');
+      if (likeBtn) likeBtn.style.pointerEvents = 'none';
+
+      const res = await likePostAPI(post.id);
+      if (res && res.success) {
+        post.likedByMe = res.liked;
+        post.likes = res.likes_count;
+        playSound(res.liked ? 'like' : 'click');
+
+        const heartIcon = card.querySelector('[data-act="like"] i');
+        const likesCountEl = card.querySelector('.likes-count strong');
+        const btnLike = card.querySelector('[data-act="like"]');
+
+        if (btnLike) btnLike.classList.toggle('liked', post.likedByMe);
+        if (heartIcon) heartIcon.className = post.likedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+        if (likesCountEl) likesCountEl.textContent = post.likes;
+      } else if (res && res.error) {
+        showToast(res.error);
       }
-      likePostAPI(post.id);
-      state.saveLiked();
-      playSound(state.likedPosts.has(key) ? 'like' : 'click');
-      renderPosts();
+
+      if (likeBtn) likeBtn.style.pointerEvents = 'auto';
+      isLiking = false;
     };
 
     if (mediaBox) mediaBox.onclick = () => {
       const now = Date.now();
       if (now - lastTap < 300 && now - lastTap > 0) {
-        if (!state.likedPosts.has(String(post.id))) toggleLike();
+        if (!post.likedByMe) toggleLike();
         if (heartAnim) { heartAnim.classList.add('pop'); setTimeout(() => heartAnim.classList.remove('pop'), 600); }
       }
       lastTap = now;
