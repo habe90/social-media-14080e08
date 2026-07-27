@@ -68,7 +68,7 @@ function renderSearchTags(popularTags = []) {
   sveBtn.className = `tag-chip ${(!selectedTag || selectedTag === 'all' || selectedTag === 'sve') ? 'active' : ''}`;
   sveBtn.textContent = 'Sve';
   sveBtn.onclick = () => {
-    
+    playSound('click');
     selectedTag = '';
     currentPage = 1;
     loadExploreData();
@@ -82,7 +82,7 @@ function renderSearchTags(popularTags = []) {
     tagBtn.className = `tag-chip ${selectedTag.toLowerCase() === cleanTag ? 'active' : ''}`;
     tagBtn.textContent = `#${cleanTag.charAt(0).toUpperCase() + cleanTag.slice(1)}`;
     tagBtn.onclick = () => {
-      
+      playSound('click');
       selectedTag = cleanTag;
       currentPage = 1;
       loadExploreData();
@@ -120,7 +120,7 @@ function renderExploreGrid(posts = []) {
     `;
 
     item.onclick = () => {
-      
+      playSound('click');
       openPostDetailModal(post.id);
     };
 
@@ -138,7 +138,7 @@ function renderExploreGrid(posts = []) {
     loadMoreBtn.className = 'btn-secondary';
     loadMoreBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Učitaj još objava';
     loadMoreBtn.onclick = () => {
-      
+      playSound('click');
       currentPage++;
       loadExploreData(true);
     };
@@ -208,7 +208,7 @@ export async function openPostDetailModal(postId) {
         } else {
           if (heartIcon) heartIcon.className = 'fa-regular fa-heart';
           likeBtn.style.color = 'var(--text-main)';
-          
+          playSound('click');
         }
       }
       likeBtn.style.pointerEvents = 'auto';
