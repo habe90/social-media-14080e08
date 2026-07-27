@@ -7,7 +7,7 @@ import { initPrayerTimesService, detectUserPreciseLocation } from './src/js/serv
 import { initForumModule } from './src/js/modules/forum.js';
 import { initChallengesModule } from './src/js/modules/challenges.js';
 import { initStoriesModule, renderStories } from './src/js/modules/stories.js';
-import { initReelsModule, renderReels, loadReelsFromBackend } from './src/js/modules/reels.js';
+import { initReelsModule, renderReels, loadReelsFromBackend, playCurrentVisibleReel } from './src/js/modules/reels.js';
 import { initFeedModule, renderPosts } from './src/js/modules/feed.js';
 import { initExploreModule, loadExploreData } from './src/js/modules/explore.js';
 import { initNotificationsModule, loadAndRenderNotifications } from './src/js/modules/notifications.js';
@@ -329,8 +329,7 @@ function switchTab(tab) {
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.getAttribute('data-tab') === tab));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
   if (tab === 'reels') {
-    const v = document.querySelector('video.reel-video');
-    if (v) v.play().catch(() => {});
+    playCurrentVisibleReel();
   } else {
     document.querySelectorAll('video.reel-video').forEach(v => v.pause());
   }
