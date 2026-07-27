@@ -274,22 +274,39 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
     const { q, tag, page = 1, limit = 24 } = req.query;
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
-    let whereClauses = [];
-    let filterParams = [];
+    let whereClausesForPosts = [];
+    let whereClausesForCount = [];
+    let postsParams = [currentUserId];
+    let countParams = [];
+
+    let postsParamIdx = 2;
+    let countParamIdx = 1;
 
     if (q) {
-      filterParams.push(`%${q}%`);
-      const idx = filterParams.length;
-      whereClauses.push(`(p.caption ILIKE $${idx} OR u.nickname ILIKE $${idx} OR u.full_name ILIKE $${idx} OR p.location ILIKE $${idx})`);
+      whereClausesForPosts.push(`(p.caption ILIKE $${postsParamIdx} OR u.nickname ILIKE $${postsParamIdx} OR u.full_name ILIKE $${postsParamIdx} OR p.location ILIKE $${postsParamIdx})`);
+      postsParams.push(`%${q}%`);
+      postsParamIdx++;
+
+      whereClausesForCount.push(`(p.caption ILIKE $${countParamIdx} OR u.nickname ILIKE $${countParamIdx} OR u.full_name ILIKE $${countParamIdx} OR p.location ILIKE $${countParamIdx})`);
+      countParams.push(`%${q}%`);
+      countParamIdx++;
     }
 
     if (tag && tag !== 'all' && tag !== 'sve') {
       const cleanTag = tag.replace(/^#/, '');
-      filterParams.push(`%#${cleanTag}%`);
-      whereClauses.push(`(p.caption ILIKE $${filterParams.length})`);
+      whereClausesForPosts.push(`(p.caption ILIKE $${postsParamIdx})`);
+      postsParams.push(`%#${cleanTag}%`);
+      postsParamIdx++;
+
+      whereClausesForCount.push(`(p.caption ILIKE $${countParamIdx})`);
+      countParams.push(`%#${cleanTag}%`);
+      countParamIdx++;
     }
 
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSqlPosts = whereClausesForPosts.length > 0 ? `WHERE ${whereClausesForPosts.join(' AND ')}` : '';
+    const whereSqlCount = whereClausesForCount.length > 0 ? `WHERE ${whereClausesForCount.join(' AND ')}` : '';
+
+    postsParams.push(parseInt(limit, 10), offset);
 
     const userIdParamNum = filterParams.length + 1;
     const limitParamNum = filterParams.length + 2;
@@ -302,16 +319,16 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
              CASE WHEN $${userIdParamNum}::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $${userIdParamNum}::int) ELSE false END AS liked_by_me
       FROM posts p
       JOIN users u ON p.user_id = u.id
-      ${whereSql}
+      ${whereSqlPosts}
       ORDER BY ((SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) + p.comments_count) DESC, p.created_at DESC
-      LIMIT $${limitParamNum} OFFSET $${offsetParamNum}
+      LIMIT $${postsParamIdx} OFFSET $${postsParamIdx + 1}
     `;
-    const postsParams = [...filterParams, currentUserId, parseInt(limit, 10), offset];
 
+    postsParams.push(parseInt(limit, 10), offset);
     const postsRes = await pool.query(postsQuery, postsParams);
 
-    const countQuery = `SELECT COUNT(*)::int FROM posts p JOIN users u ON p.user_id = u.id ${whereSql}`;
-    const countRes = await pool.query(countQuery, filterParams);
+    const countQuery = `SELECT COUNT(*)::int FROM posts p JOIN users u ON p.user_id = u.id ${whereSqlCount}`;
+    const countRes = await pool.query(countQuery, countParams);
     const total = countRes.rows[0]?.count || 0;
 
     const allCaptionsRes = await pool.query(`SELECT caption FROM posts WHERE caption ILIKE '%#%'`);
