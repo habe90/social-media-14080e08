@@ -98,39 +98,6 @@ export async function initDB() {
         is_read BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE TABLE IF NOT EXISTS challenge_templates (
-        id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL UNIQUE,
-        category VARCHAR(50) NOT NULL,
-        sort_order INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS user_challenge_completions (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        challenge_template_id INTEGER NOT NULL REFERENCES challenge_templates(id) ON DELETE CASCADE,
-        completed_date DATE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT user_challenge_unique UNIQUE (user_id, challenge_template_id, completed_date)
-      );
-      CREATE TABLE IF NOT EXISTS daily_ayah_cache (
-        id SERIAL PRIMARY KEY,
-        ayah_date DATE UNIQUE NOT NULL,
-        surah INTEGER NOT NULL,
-        ayah INTEGER NOT NULL,
-        surah_name TEXT NOT NULL,
-        arabic_text TEXT,
-        translation_text TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Dopunske migracije za kolone dodane nakon prvobitnog CREATE TABLE
-    // (CREATE TABLE IF NOT EXISTS se ne pokreće ponovo na već postojećim tabelama)
-    await activePool.query(`
-      ALTER TABLE reels ADD COLUMN IF NOT EXISTS comments_count INTEGER DEFAULT 0;
-      ALTER TABLE reels ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0;
-      ALTER TABLE posts ADD COLUMN IF NOT EXISTS comments_count INTEGER DEFAULT 0;
-      ALTER TABLE posts ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0;
     `);
 
     console.log('✅ PostgreSQL migracije uspešno izvršene');
@@ -194,72 +161,6 @@ export async function initDB() {
         ($1, 'https://assets.mixkit.co/videos/preview/mixkit-a-far-view-of-a-mosque-in-a-city-43152-large.mp4', 'Mir i tišina pred namaz 🕌✨', 'Duševni mir - Selamy Network', 24, 7)
       `, [userId]);
       console.log('✅ Inicijalni Reel video zapisi sačuvani u PostgreSQL bazi');
-    }
-
-    // Seed the master list of daily good-deed challenges (rotates from this pool)
-    const challengeCountRes = await activePool.query('SELECT COUNT(*)::int AS count FROM challenge_templates');
-    if (challengeCountRes.rows[0].count === 0) {
-      const challenges = [
-        ['Klanjaj sve namaze na vrijeme danas', 'Ibadet'],
-        ['Prouči Ajetul-Kursiju nakon svakog namaza', 'Ibadet'],
-        ['Prouči suru Al-Mulk pred spavanje', 'Ibadet'],
-        ['Zadrži se u dovi nekoliko minuta nakon namaza', 'Ibadet'],
-        ['Prouči jedan džuz Kur\'ana danas', 'Ibadet'],
-        ['Klanjaj dva rekata duha-namaza', 'Ibadet'],
-        ['Nauči napamet jednu novu kratku suru', 'Ibadet'],
-        ['Zapiši tri stvari na kojima si zahvalan Allahu', 'Ibadet'],
-        ['Udijeli osmijeh i lijepu riječ nekome danas', 'Nasihat'],
-        ['Pošalji poruku ohrabrenja prijatelju kojem je teško', 'Nasihat'],
-        ['Podijeli koristan islamski sadržaj sa nekim', 'Nasihat'],
-        ['Zahvali se nekome ko ti je nekad pomogao', 'Nasihat'],
-        ['Reci nekome iskren kompliment', 'Nasihat'],
-        ['Pročitaj jedan hadis i njegovo značenje', 'Znanje'],
-        ['Nauči nešto novo o životu Poslanika, s.a.v.s.', 'Znanje'],
-        ['Odgledaj ili pročitaj kratko predavanje o islamu', 'Znanje'],
-        ['Nauči jedno novo arapsko slovo ili riječ', 'Znanje'],
-        ['Istraži značenje jednog Allahovog imena (Esma-ul-husna)', 'Znanje'],
-        ['Nazovi nekog od rodbine ili prijatelja', 'Zajednica'],
-        ['Posjeti ili nazovi bolesnog poznanika', 'Zajednica'],
-        ['Pomozi komšiji oko nečega danas', 'Zajednica'],
-        ['Provedi vrijeme kvalitetno sa porodicom, bez telefona', 'Zajednica'],
-        ['Pozdravi selamom sve koje danas sretneš', 'Zajednica'],
-        ['Podrži nekoga na forumu zajednice lijepom porukom', 'Zajednica'],
-        ['Udijeli malu sadaku u sklopu humanitarne akcije', 'Humanitarno'],
-        ['Doniraj odjeću ili stvari koje ti ne trebaju', 'Humanitarno'],
-        ['Nahrani nekog ko posti ili je gladan', 'Humanitarno'],
-        ['Pomozi finansijski ili na drugi način osobi u potrebi', 'Humanitarno'],
-        ['Prijavi se za volontiranje ove sedmice', 'Humanitarno'],
-        ['Poljubi ruku roditelju i zahvali mu se', 'Porodica'],
-        ['Skuhaj ili donesi obrok nekom iz porodice', 'Porodica'],
-        ['Provedi 15 minuta razgovarajući sa starijim članom porodice', 'Porodica'],
-        ['Oprosti nekom iz porodice staru svađu', 'Porodica'],
-        ['Posadi biljku ili se pobrini za zelenilo oko sebe', 'Priroda'],
-        ['Pokupi smeće u svom okruženju', 'Priroda'],
-        ['Uštedi vodu ili struju danas svjesno', 'Priroda'],
-        ['Nahrani ili napoji životinju u komšiluku', 'Priroda'],
-        ['Kontroliraj gnjev - odbroj do deset prije reakcije', 'Ahlak'],
-        ['Izbjegavaj ogovaranje cijeli dan', 'Ahlak'],
-        ['Budi strpljiv u situaciji koja te obično nervira', 'Ahlak'],
-        ['Oprosti nekome ko ti je nanio nepravdu', 'Ahlak'],
-        ['Reci istinu čak i kad je teško', 'Ahlak'],
-        ['Zahvali Allahu na svakoj poteškoći kao i na blagodati', 'Ahlak'],
-        ['Idi na spavanje ranije i probudi se za sabah', 'Samopoboljšanje'],
-        ['Isključi društvene mreže na sat vremena i razmisli o sebi', 'Samopoboljšanje'],
-        ['Napravi listu ciljeva za ovu sedmicu', 'Samopoboljšanje'],
-        ['Vježbaj ili prošetaj barem 20 minuta', 'Samopoboljšanje'],
-        ['Napiši dnevnik zahvalnosti večeras', 'Samopoboljšanje'],
-        ['Fokusiraj se na rješenja umjesto žalbi cijeli dan', 'Samopoboljšanje'],
-        ['Podijeli inspirativnu objavu koja može pomoći nekome', 'Zajednica']
-      ];
-      const values = [];
-      const params = [];
-      challenges.forEach(([title, category], idx) => {
-        const base = idx * 3;
-        values.push(`($${base + 1}, $${base + 2}, $${base + 3})`);
-        params.push(title, category, idx);
-      });
-      await activePool.query(`INSERT INTO challenge_templates (title, category, sort_order) VALUES ${values.join(',')}`, params);
-      console.log(`✅ Učitano ${challenges.length} dnevnih izazova dobrih djela u bazu`);
     }
 
   } catch (err) {
