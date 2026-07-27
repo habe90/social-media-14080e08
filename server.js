@@ -180,6 +180,83 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Greška pri ažuriranju profila' }); }
 });
 
+// ========= EXPLORE API =========
+app.get('/api/explore', optionalAuth, async (req, res) => {
+  try {
+    const currentUserId = req.user ? req.user.id : null;
+    const { q, tag, page = 1, limit = 24 } = req.query;
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+
+    let whereClauses = [];
+    let params = [currentUserId];
+    let paramIndex = 2;
+
+    if (q) {
+      whereClauses.push(`(p.caption ILIKE $${paramIndex} OR u.nickname ILIKE $${paramIndex} OR u.full_name ILIKE $${paramIndex} OR p.location ILIKE $${paramIndex})`);
+      params.push(`%${q}%`);
+      paramIndex++;
+    }
+
+    if (tag && tag !== 'all' && tag !== 'sve') {
+      const cleanTag = tag.replace(/^#/, '');
+      whereClauses.push(`(p.caption ILIKE $${paramIndex})`);
+      params.push(`%#${cleanTag}%`);
+      paramIndex++;
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const postsQuery = `
+      SELECT p.id, p.caption, p.image_url, p.location, p.comments_count, p.created_at,
+             u.nickname AS author, u.full_name, u.avatar,
+             (SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) AS likes_count,
+             CASE WHEN $1::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $1::int) ELSE false END AS liked_by_me
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      ${whereSql}
+      ORDER BY ((SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) + p.comments_count) DESC, p.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(parseInt(limit, 10), offset);
+
+    const postsRes = await pool.query(postsQuery, params);
+
+    const countQuery = `SELECT COUNT(*)::int FROM posts p JOIN users u ON p.user_id = u.id ${whereSql}`;
+    const countParams = params.slice(0, paramIndex - 1);
+    const countRes = await pool.query(countQuery, countParams);
+    const total = countRes.rows[0]?.count || 0;
+
+    // Extract hashtags dynamically
+    const allCaptionsRes = await pool.query(`SELECT caption FROM posts WHERE caption ILIKE '%#%'`);
+    const tagMap = {};
+    allCaptionsRes.rows.forEach(row => {
+      const matches = row.caption.match(/#([a-zA-Z0-9čćžšđČĆŽŠĐ_]+)/g);
+      if (matches) {
+        matches.forEach(m => {
+          const clean = m.substring(1).toLowerCase();
+          tagMap[clean] = (tagMap[clean] || 0) + 1;
+        });
+      }
+    });
+
+    const popularTags = Object.keys(tagMap)
+      .sort((a, b) => tagMap[b] - tagMap[a])
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      posts: postsRes.rows,
+      tags: popularTags,
+      total,
+      page: parseInt(page, 10),
+      totalPages: Math.ceil(total / parseInt(limit, 10))
+    });
+  } catch (err) {
+    console.error('GET /api/explore error:', err);
+    res.status(500).json({ error: 'Greška pri učitavanju istraživanja' });
+  }
+});
+
 // ========= POSTS + COMMENTS + LIKES =========
 app.get('/api/posts', optionalAuth, async (req, res) => {
   try {
@@ -202,6 +279,38 @@ app.get('/api/posts', optionalAuth, async (req, res) => {
     }
     res.json({ posts });
   } catch (err) { console.error('GET /api/posts error:', err); res.status(500).json({ error: 'Greška pri učitavanju objava' }); }
+});
+
+app.get('/api/posts/:id', optionalAuth, async (req, res) => {
+  try {
+    const currentUserId = req.user ? req.user.id : null;
+    const postId = parseInt(req.params.id, 10);
+    if (isNaN(postId)) return res.status(400).json({ error: 'Nevažeći ID' });
+
+    const postRes = await pool.query(`
+      SELECT p.id, p.caption, p.image_url, p.location, p.comments_count, p.created_at,
+             u.nickname AS author, u.full_name, u.avatar,
+             (SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) AS likes_count,
+             CASE WHEN $1::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $1::int) ELSE false END AS liked_by_me
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = $2
+    `, [currentUserId, postId]);
+
+    if (!postRes.rows[0]) return res.status(404).json({ error: 'Objava nije pronađena' });
+
+    const commentsRes = await pool.query(`
+      SELECT c.id, c.text, c.created_at, u.nickname AS user, u.avatar
+      FROM comments c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.post_id = $1
+      ORDER BY c.created_at ASC
+    `, [postId]);
+
+    res.json({ post: { ...postRes.rows[0], comments: commentsRes.rows } });
+  } catch (err) {
+    res.status(500).json({ error: 'Greška pri učitavanju objave' });
+  }
 });
 
 app.post('/api/posts', authenticateToken, async (req, res) => {
@@ -301,7 +410,7 @@ app.get('/api/reels', async (req, res) => {
 app.post('/api/reels', authenticateToken, async (req, res) => {
   try {
     const { video_url, caption, audio_title } = req.body;
-    if (!video_url) return res.status(400).json({ error: 'Video je obavezan' });
+    if (!video_url) return res.status(400).json({ error: 'Video je obavezna' });
     const userId = req.user.id;
     const insertRes = await pool.query(`INSERT INTO reels (user_id, video_url, caption, audio_title) VALUES ($1,$2,$3,$4) RETURNING id, video_url, caption, audio_title, likes_count, comments_count, created_at`, [userId, video_url, caption||'', audio_title||'Selamy Original Audio']);
     const u = (await pool.query('SELECT nickname, avatar FROM users WHERE id=$1', [userId])).rows[0];
