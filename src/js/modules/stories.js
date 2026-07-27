@@ -60,10 +60,10 @@ export function renderStories() {
     const ringClass = story.hasUnseen ? 'story-ring' : 'story-ring seen';
     if (isMe) {
       storyEl.innerHTML = `<div class="${ringClass}"><img src="${story.avatar}" alt="${story.username}"><div class="add-story-badge" title="Dodaj novu priču"><i class="fa-solid fa-plus"></i></div></div><span class="story-username">${story.username}</span>`;
-      storyEl.onclick = () => { story.slides?.length > 0 ? openStoryModal(idx) : (() => { const m = document.getElementById('create-modal'); if (m) m.classList.remove('hidden'); const ts = document.getElementById('tab-create-story'); if (ts) ts.click(); })(); };
+      storyEl.onclick = () => { playSound('click'); story.slides?.length > 0 ? openStoryModal(idx) : (() => { const m = document.getElementById('create-modal'); if (m) m.classList.remove('hidden'); const ts = document.getElementById('tab-create-story'); if (ts) ts.click(); })(); };
     } else {
       storyEl.innerHTML = `<div class="${ringClass}"><img src="${story.avatar}" alt="${story.username}"></div><span class="story-username">${story.username}</span>`;
-      storyEl.onclick = () => { openStoryModal(idx); };
+      storyEl.onclick = () => { playSound('click'); openStoryModal(idx); };
     }
     storiesList.appendChild(storyEl);
   });
@@ -95,8 +95,8 @@ function displayCurrentSlide() {
 }
 
 function startStoryTimer() { if (state.storyState.timer) clearInterval(state.storyState.timer); state.storyState.progress = 0; state.storyState.timer = setInterval(() => { if (state.storyState.isPaused) return; state.storyState.progress += 2; const fill = document.getElementById('current-progress-fill'); if (fill) fill.style.width = `${state.storyState.progress}%`; if (state.storyState.progress >= 100) { clearInterval(state.storyState.timer); nextStorySlide(); } }, 100); }
-export function nextStorySlide() { state.storyState.slideIndex++; displayCurrentSlide(); }
-export function prevStorySlide() { if (state.storyState.slideIndex > 0) { state.storyState.slideIndex--; displayCurrentSlide(); } else if (state.storyState.storyIndex > 0) { const prev = state.stories[state.storyState.storyIndex - 1]; if (prev?.slides?.length) { state.storyState.storyIndex--; state.storyState.slideIndex = prev.slides.length - 1; displayCurrentSlide(); } } }
+export function nextStorySlide() { playSound('pop'); state.storyState.slideIndex++; displayCurrentSlide(); }
+export function prevStorySlide() { playSound('pop'); if (state.storyState.slideIndex > 0) { state.storyState.slideIndex--; displayCurrentSlide(); } else if (state.storyState.storyIndex > 0) { const prev = state.stories[state.storyState.storyIndex - 1]; if (prev?.slides?.length) { state.storyState.storyIndex--; state.storyState.slideIndex = prev.slides.length - 1; displayCurrentSlide(); } } }
 export function closeStoryModal() { if (state.storyState.timer) clearInterval(state.storyState.timer); state.storyState.active = false; const m = document.getElementById('story-modal'); if (m) m.classList.add('hidden'); }
 
 function setupStoryControls() {
@@ -104,7 +104,7 @@ function setupStoryControls() {
   const touchNext = document.getElementById('story-touch-next'); if (touchNext) touchNext.onclick = nextStorySlide;
   const touchPrev = document.getElementById('story-touch-prev'); if (touchPrev) touchPrev.onclick = prevStorySlide;
   const pauseBtn = document.getElementById('btn-pause-story');
-  if (pauseBtn) pauseBtn.onclick = () => { state.storyState.isPaused = !state.storyState.isPaused; pauseBtn.innerHTML = state.storyState.isPaused ? '<i class="fa-solid fa-play"></i>' : '<i class="fa-solid fa-pause"></i>'; };
+  if (pauseBtn) pauseBtn.onclick = () => { playSound('click'); state.storyState.isPaused = !state.storyState.isPaused; pauseBtn.innerHTML = state.storyState.isPaused ? '<i class="fa-solid fa-play"></i>' : '<i class="fa-solid fa-pause"></i>'; };
 
   const replySend = document.getElementById('story-reply-send');
   const replyInput = document.getElementById('story-reply-input');
