@@ -100,6 +100,15 @@ export async function initDB() {
       );
     `);
 
+    // Dopunske migracije za kolone dodane nakon prvobitnog CREATE TABLE
+    // (CREATE TABLE IF NOT EXISTS se ne pokreće ponovo na već postojećim tabelama)
+    await activePool.query(`
+      ALTER TABLE reels ADD COLUMN IF NOT EXISTS comments_count INTEGER DEFAULT 0;
+      ALTER TABLE reels ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0;
+      ALTER TABLE posts ADD COLUMN IF NOT EXISTS comments_count INTEGER DEFAULT 0;
+      ALTER TABLE posts ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0;
+    `);
+
     console.log('✅ PostgreSQL migracije uspešno izvršene');
 
     // Clean up invalid blob: URLs
