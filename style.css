@@ -1191,6 +1191,22 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   color: var(--text-muted);
 }
 
+.user-gps-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.user-gps-tag i {
+  font-size: 10px;
+  color: var(--primary-blue);
+}
+
 .btn-text {
   background: none;
   border: none;
@@ -1849,6 +1865,20 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   color: var(--accent-cyan);
   text-decoration: none;
   font-weight: 600;
+}
+
+.profile-gps-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  opacity: 0.8;
 }
 
 .profile-tabs {
