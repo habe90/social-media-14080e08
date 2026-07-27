@@ -1,19 +1,21 @@
 /* SELAMY SOCIAL & ISLAMIC NETWORK - MOBILE OPTIMIZED BLUE & BLACK THEME */
 :root {
-  --bg-dark: #080c14;
-  --bg-card: #0f172a;
-  --bg-card-hover: #1e293b;
-  --bg-modal: #111827;
-  --border-color: #1e293b;
+  --bg-dark: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-modal: #ffffff;
+  --border-color: #e2e8f0;
   --primary-blue: #0084ff;
-  --primary-blue-glow: rgba(0, 132, 255, 0.4);
+  --primary-blue-glow: rgba(0, 132, 255, 0.25);
   --primary-blue-hover: #0070e0;
-  --accent-cyan: #38bdf8;
+  --accent-cyan: #0ea5e9;
   --emerald-green: #10b981;
-  --text-main: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
   --like-red: #ef4444;
+  --header-bg: #ffffff;
+  --page-bg: #f7f9fc;
   --story-gradient: linear-gradient(45deg, #0084ff, #38bdf8, #818cf8);
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -32,7 +34,7 @@
 }
 
 html, body {
-  background-color: var(--bg-dark);
+  background-color: var(--page-bg);
   color: var(--text-main);
   min-height: 100vh;
   min-height: 100dvh;
@@ -105,7 +107,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   top: 0;
   left: 0;
   border-right: 1px solid var(--border-color);
-  background-color: var(--bg-dark);
+  background-color: var(--header-bg);
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
@@ -137,7 +139,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
 .logo-text {
   font-size: 24px;
   font-weight: 800;
-  background: linear-gradient(135deg, #ffffff 0%, var(--accent-cyan) 100%);
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-cyan) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.5px;
@@ -237,7 +239,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   right: 0;
   height: calc(56px + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
-  background-color: #0b1329;
+  background-color: var(--header-bg);
   border-bottom: 1px solid var(--border-color);
   padding-left: 16px;
   padding-right: 16px;
@@ -262,7 +264,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   right: 0;
   height: calc(58px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background-color: #0b1329;
+  background-color: var(--header-bg);
   border-top: 1px solid var(--border-color);
   justify-content: space-around;
   align-items: center;
@@ -855,7 +857,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   border-radius: var(--radius-lg);
   padding: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
 }
 
 .stories-container {
@@ -944,6 +946,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   overflow: hidden;
   transition: border-color 0.2s ease;
   width: 100%;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
 }
 
 .post-header {
@@ -1880,11 +1883,11 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   font-size: 10px;
   color: var(--text-muted);
   margin-top: 4px;
-  background: rgba(15, 23, 42, 0.6);
+  background: #f1f5f9;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
-  opacity: 0.8;
+  opacity: 1;
 }
 
 .profile-tabs {
@@ -1924,7 +1927,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
 /* UPLOAD & OPTIMIZATION UI */
 .upload-dropzone {
   border: 2px dashed rgba(0, 132, 255, 0.4);
-  background-color: rgba(15, 23, 42, 0.6);
+  background-color: #f7f9fc;
   border-radius: var(--radius-lg);
   padding: 24px 16px;
   text-align: center;
@@ -2018,7 +2021,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
 .modal {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.85);
+  background-color: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(8px);
   z-index: 2000;
   display: flex;
@@ -2038,7 +2041,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   width: 100%;
   max-width: 500px;
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
   max-height: 90vh;
   max-height: 90dvh;
   display: flex;
@@ -2096,7 +2099,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
 }
 
 .styled-input, textarea, select.styled-input {
-  background-color: var(--bg-dark);
+  background-color: var(--page-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 12px 14px;
