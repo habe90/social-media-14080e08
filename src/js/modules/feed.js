@@ -4,22 +4,13 @@ import { state } from '../state.js';
 import { showToast } from '../utils/compressor.js';
 import { playSound } from '../utils/sound.js';
 import { renderProfileGrid } from './profile.js';
-import { fetchPostsAPI, likePostAPI, commentPostAPI, createStoryAPI, fetchAjetDanaAPI } from '../services/api.js';
+import { fetchPostsAPI, likePostAPI, commentPostAPI, createStoryAPI } from '../services/api.js';
 
 export async function initFeedModule() {
   renderInspirationWidget();
-  loadAjetDana();
   await loadPostsFromBackend();
   renderPosts();
   renderSuggestions();
-}
-
-export async function loadAjetDana() {
-  const ajet = await fetchAjetDanaAPI();
-  if (ajet && ajet.text) {
-    state.dailyInspiration = { id: 'insp-' + ajet.source, type: ajet.type, source: ajet.source, text: ajet.text, arabic: ajet.arabic };
-    renderInspirationWidget();
-  }
 }
 
 export async function loadPostsFromBackend() {
@@ -109,7 +100,7 @@ export function renderPosts() {
       if (res && res.success) {
         post.likedByMe = res.liked;
         post.likes = res.likes_count;
-        if (res.liked) playSound('like');
+        playSound(res.liked ? 'like' : 'click');
 
         const heartIcon = card.querySelector('[data-act="like"] i');
         const likesCountEl = card.querySelector('.likes-count strong');
@@ -136,9 +127,9 @@ export function renderPosts() {
     };
 
     card.querySelectorAll('[data-act="like"]').forEach(b => b.onclick = toggleLike);
-    card.querySelectorAll('[data-act="save"]').forEach(b => b.onclick = () => { post.saved=!post.saved; renderPosts(); renderProfileGrid(); showToast(post.saved?'Sačuvano':'Uklonjeno'); });
-    card.querySelectorAll('[data-act="share"]').forEach(b => b.onclick = () => { navigator.clipboard?.writeText(window.location.href); showToast('Link kopiran!'); });
-    card.querySelectorAll('[data-act="cmfocus"]').forEach(b => b.onclick = () => { card.querySelector('.input-comment')?.focus(); });
+    card.querySelectorAll('[data-act="save"]').forEach(b => b.onclick = () => { post.saved=!post.saved; playSound('click'); renderPosts(); renderProfileGrid(); showToast(post.saved?'Sačuvano':'Uklonjeno'); });
+    card.querySelectorAll('[data-act="share"]').forEach(b => b.onclick = () => { playSound('click'); navigator.clipboard?.writeText(window.location.href); showToast('Link kopiran!'); });
+    card.querySelectorAll('[data-act="cmfocus"]').forEach(b => b.onclick = () => { playSound('click'); card.querySelector('.input-comment')?.focus(); });
 
     const input = card.querySelector('.input-comment');
     const submitBtn = card.querySelector('[data-act="submitcm"]');
