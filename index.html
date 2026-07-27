@@ -22,7 +22,7 @@
 <body>
   <div id="app" class="app-container">
 
-    <!-- DESKTOP BOČNA NAVIGACIJA (Prikazuje se samo na ekranima >= 768px) -->
+    <!-- DESKTOP BOČNA NAVIGACIJA (Prikazuje se SAMO na ekranima >= 768px) -->
     <aside class="sidebar">
       <div class="sidebar-brand" data-tab="home">
         <div class="logo-icon"><i class="fa-solid fa-paper-plane"></i></div>
@@ -80,7 +80,7 @@
       </div>
     </aside>
 
-    <!-- MOBILNO ZAGLAVLJE (Prikazuje se samo na mobilnom < 768px) -->
+    <!-- MOBILNO ZAGLAVLJE (Prikazuje se SAMO na mobilnom < 768px) -->
     <header class="mobile-header">
       <div class="logo-text" data-tab="home">Selamy</div>
       <div class="mobile-actions">
@@ -117,7 +117,7 @@
             </div>
           </div>
 
-          <!-- DESNA TRAKA -->
+          <!-- DESNA TRAKA (Desktop) -->
           <aside class="right-sidebar">
             <div class="user-mini-card">
               <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80" alt="Avatar">
@@ -311,7 +311,7 @@
 
     </main>
 
-    <!-- MOBILNA DONJA TRAKA (Prikazuje se samo na mobilnom < 768px, fiksirana za dno sa ikonicom + opisom) -->
+    <!-- MOBILNA DONJA TRAKA (Prikazuje se SAMO na mobilnom < 768px, fiksirana za dno) -->
     <nav class="mobile-nav">
       <a href="#" class="nav-item active" data-tab="home">
         <i class="fa-solid fa-house"></i>
@@ -590,8 +590,8 @@
 
     <!-- PROZOR ZA PRIJAVU I REGISTRACIJU (AUTH OVERLAY) -->
     <div id="login-overlay" class="modal hidden" style="background-color: var(--bg-dark); z-index: 2000;">
-      <div class="modal-card" style="max-width: 440px; text-align: center; border: 1px solid var(--border-color); padding: 24px; max-height: 90vh; overflow-y: auto;">
-        <div style="margin-bottom: 20px;">
+      <div class="modal-card" style="max-width: 440px; border: 1px solid var(--border-color); padding: 24px; max-height: 90vh; max-height: 90dvh; overflow-y: auto;">
+        <div style="margin-bottom: 20px; text-align: center;">
           <div class="logo-icon" style="margin: 0 auto 10px auto; width: 52px; height: 52px; font-size: 24px;">
             <i class="fa-solid fa-paper-plane"></i>
           </div>
@@ -611,10 +611,17 @@
             <label><i class="fa-solid fa-user"></i> Korisničko ime, email ili telefon</label>
             <input type="text" id="login-username-input" value="halil_official" class="styled-input" placeholder="Unesite nadimak, email ili broj telefona">
           </div>
+          
           <div class="form-group">
             <label><i class="fa-solid fa-lock"></i> Lozinka</label>
-            <input type="password" id="login-password-input" value="••••••••" class="styled-input" placeholder="Lozinka">
+            <div class="password-input-wrapper">
+              <input type="password" id="login-password-input" value="selamy123" class="styled-input" placeholder="Lozinka">
+              <button type="button" class="btn-toggle-pw" data-target="login-password-input" title="Prikaži/sakrij lozinku">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
           </div>
+
           <button class="btn-primary full-width" id="btn-do-login" style="margin-top: 6px;"><i class="fa-solid fa-right-to-bracket"></i> Prijavi se na aplikaciju</button>
           <p style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px;">Nemate nalog? <a href="#" id="link-goto-register" style="color: var(--primary-blue); font-weight: 600;">Registrujte se besplatno</a></p>
         </div>
@@ -647,12 +654,22 @@
 
           <div class="form-group">
             <label><i class="fa-solid fa-lock"></i> Lozinka</label>
-            <input type="password" id="reg-password" class="styled-input" placeholder="Najmanje 8 karaktera">
+            <div class="password-input-wrapper">
+              <input type="password" id="reg-password" class="styled-input" placeholder="Najmanje 6 karaktera">
+              <button type="button" class="btn-toggle-pw" data-target="reg-password" title="Prikaži/sakrij lozinku">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
           </div>
 
           <div class="form-group">
             <label><i class="fa-solid fa-shield-cat"></i> Potvrda lozinke</label>
-            <input type="password" id="reg-confirm-password" class="styled-input" placeholder="Ponovite lozinku">
+            <div class="password-input-wrapper">
+              <input type="password" id="reg-confirm-password" class="styled-input" placeholder="Ponovite lozinku">
+              <button type="button" class="btn-toggle-pw" data-target="reg-confirm-password" title="Prikaži/sakrij lozinku">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
           </div>
 
           <label style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
