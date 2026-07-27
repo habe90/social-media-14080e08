@@ -66,7 +66,30 @@ export async function fetchCurrentUser() {
   } catch (err) { return null; }
 }
 
-// 2. EXPLORE
+// 2. NOTIFICATIONS
+export async function fetchNotificationsAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/notifications`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+export async function markNotificationsReadAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/notifications/read`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+// 3. EXPLORE
 export async function fetchExploreAPI({ q = '', tag = '', page = 1 } = {}) {
   try {
     const params = new URLSearchParams();
@@ -96,7 +119,7 @@ export async function fetchPostByIdAPI(postId) {
   } catch (err) { return null; }
 }
 
-// 3. POSTS + COMMENTS + LIKES
+// 4. POSTS + COMMENTS + LIKES
 export async function fetchPostsAPI() {
   try {
     const res = await fetch(`${API_BASE}/posts`, {
@@ -151,7 +174,7 @@ export async function commentPostAPI(postId, text) {
   } catch (err) { return null; }
 }
 
-// 4. STORIES
+// 5. STORIES
 export async function fetchStoriesAPI() {
   try {
     const res = await fetch(`${API_BASE}/stories`, { credentials: 'include' });
@@ -187,7 +210,7 @@ export async function commentStoryAPI(storyId, text) {
   } catch (err) { return null; }
 }
 
-// 5. REELS
+// 6. REELS
 export async function fetchReelsAPI() {
   try {
     const res = await fetch(`${API_BASE}/reels`, { credentials: 'include' });
@@ -245,7 +268,7 @@ export async function fetchReelCommentsAPI(reelId) {
   } catch (err) { return null; }
 }
 
-// 6. FORUM
+// 7. FORUM
 export async function fetchForumAPI() {
   try {
     const res = await fetch(`${API_BASE}/forum`, { credentials: 'include' });
