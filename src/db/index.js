@@ -87,12 +87,24 @@ export async function initDB() {
         likes_count INTEGER DEFAULT 0, replies_count INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        actor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+        reel_id INTEGER REFERENCES reels(id) ON DELETE CASCADE,
+        text TEXT,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     console.log('✅ PostgreSQL migracije uspešno izvršene');
 
-    // Clean up invalid blob: URLs from previous reels if any exist
+    // Clean up invalid blob: URLs
     await activePool.query(`DELETE FROM reels WHERE video_url LIKE 'blob:%'`);
+    await activePool.query(`DELETE FROM posts WHERE image_url LIKE 'blob:%'`);
 
     let userId;
     const userRes = await activePool.query('SELECT id FROM users WHERE nickname = $1', ['halil_official']);
@@ -108,6 +120,36 @@ export async function initDB() {
       console.log('✅ Defaultni nalog halil_official kreiran');
     } else {
       userId = userRes.rows[0].id;
+    }
+
+    // Create a second test user if not exists for notifications test
+    const user2Res = await activePool.query('SELECT id FROM users WHERE nickname = $1', ['emina_k']);
+    let user2Id;
+    if (user2Res.rows.length === 0) {
+      const salt = bcrypt.genSaltSync(10);
+      const hash = bcrypt.hashSync('selamy123', salt);
+      const ins2 = await activePool.query(`INSERT INTO users (full_name, nickname, email, phone, password_hash, avatar, bio, location) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [
+        'Emina Kovačević', 'emina_k', 'emina@selamy.ba', '+38761222333', hash,
+        'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
+        'Ljubitelj prirode i arhitekture ✨ | Sarajevo', 'Sarajevo'
+      ]);
+      user2Id = ins2.rows[0].id;
+    } else {
+      user2Id = user2Res.rows[0].id;
+    }
+
+    // Seed sample posts if posts table is empty
+    const postsCountRes = await activePool.query('SELECT COUNT(*)::int AS count FROM posts');
+    if (postsCountRes.rows[0].count === 0) {
+      await activePool.query(`
+        INSERT INTO posts (user_id, caption, image_url, location) VALUES
+        ($1, 'Pogled na sunčani dan u Kalesiji 🌅 #fotografije #kalesija #priroda #selamy', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80', 'Kalesija (Babajići)'),
+        ($1, 'Kafa sa pogledom na staru čaršiju u Sarajevu ☕🕌 #sarajevo #putovanja #bosna', 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=800&auto=format&fit=crop&q=80', 'Sarajevo'),
+        ($2, 'Prelijep zalazak sunca na planini 🏔️✨ #putovanja #priroda #fotografije', 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop&q=80', 'Planina Bjelašnica'),
+        ($1, 'Edukativan dan i učenje novih vještina 📚💡 #tehnologija #znanje #nasihat', 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop&q=80', 'Kalesija'),
+        ($2, 'Arhitektura i plavi tonovi grada 🏙️ #moda #fotografije #sarajevo', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80', 'Sarajevo')
+      `, [userId, user2Id]);
+      console.log('✅ Inicijalne objave sačuvane u PostgreSQL bazi');
     }
 
     // Seed sample reels if reels table is empty
