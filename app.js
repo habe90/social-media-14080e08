@@ -16,7 +16,6 @@ import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.j
 import { registerUser, loginUser, logoutUser, fetchCurrentUser, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
 
 document.addEventListener('DOMContentLoaded', initApp);
-if (document.readyState !== 'loading') initApp();
 
 async function initApp() {
   detectUserPreciseLocation(true);
