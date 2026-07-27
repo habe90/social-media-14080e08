@@ -17,8 +17,48 @@ app.use(cors({
   credentials: true
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '30mb' }));
-app.use(express.urlencoded({ limit: '30mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Ensure uploads folder exists and is statically served
+const uploadsDir = path.resolve('uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
+
+// Helper: Save Base64 Data URL as binary file on disk
+function saveBase64Media(dataUrl, subfolder = 'media') {
+  if (!dataUrl || typeof dataUrl !== 'string') return dataUrl;
+  if (!dataUrl.startsWith('data:')) return dataUrl;
+
+  try {
+    const matches = dataUrl.match(/^data:([a-zA-Z0-9-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) return dataUrl;
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    let ext = 'png';
+    if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = 'jpg';
+    else if (mimeType.includes('png')) ext = 'png';
+    else if (mimeType.includes('webp')) ext = 'webp';
+    else if (mimeType.includes('mp4')) ext = 'mp4';
+    else if (mimeType.includes('webm')) ext = 'webm';
+    else if (mimeType.includes('quicktime') || mimeType.includes('mov')) ext = 'mov';
+
+    const dir = path.resolve('uploads', subfolder);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const filename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+    const filePath = path.join(dir, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    return `/uploads/${subfolder}/${filename}`;
+  } catch (err) {
+    console.error('Error saving base64 media:', err);
+    return dataUrl;
+  }
+}
 
 // Inicijalizacija PostgreSQL Baze
 initDB();
@@ -69,7 +109,7 @@ function optionalAuth(req, res, next) {
 }
 
 async function createNotification({ userId, actorId, type, postId = null, reelId = null, text = null }) {
-  if (!userId || !actorId || userId === actorId) return; // Don't notify oneself
+  if (!userId || !actorId || userId === actorId) return;
   try {
     await pool.query(`
       INSERT INTO notifications (user_id, actor_id, type, post_id, reel_id, text)
@@ -81,7 +121,7 @@ async function createNotification({ userId, actorId, type, postId = null, reelId
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '4.5' });
+  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '4.6' });
 });
 
 // ========= AUTH ROUTES =========
@@ -94,7 +134,6 @@ const handleRegister = async (req, res) => {
     const cleanNick = nickname.toLowerCase().trim().replace(/^@/, '');
     const cleanEmail = email.toLowerCase().trim();
 
-    // Check duplicate
     const existing = await pool.query('SELECT id, nickname, email FROM users WHERE nickname = $1 OR email = $2', [cleanNick, cleanEmail]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Korisničko ime ili e-mail adresa je već zauzeta.' });
@@ -180,7 +219,10 @@ app.get('/api/me', authenticateToken, handleMe);
 
 app.put('/api/users/profile', authenticateToken, async (req, res) => {
   try {
-    const { full_name, bio, location, avatar, email, phone } = req.body;
+    let { full_name, bio, location, avatar, email, phone } = req.body;
+    if (avatar && avatar.startsWith('data:')) {
+      avatar = saveBase64Media(avatar, 'avatars');
+    }
     await pool.query(`
       UPDATE users 
       SET full_name=COALESCE($1,full_name), bio=COALESCE($2,bio), location=COALESCE($3,location), 
@@ -271,7 +313,6 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
     const countRes = await pool.query(countQuery, countParams);
     const total = countRes.rows[0]?.count || 0;
 
-    // Extract hashtags dynamically from all posts captions
     const allCaptionsRes = await pool.query(`SELECT caption FROM posts WHERE caption ILIKE '%#%'`);
     const tagMap = {};
     allCaptionsRes.rows.forEach(row => {
@@ -360,9 +401,13 @@ app.get('/api/posts/:id', optionalAuth, async (req, res) => {
 
 app.post('/api/posts', authenticateToken, async (req, res) => {
   try {
-    const { caption, image_url, location } = req.body;
+    let { caption, image_url, location } = req.body;
     if (!image_url) return res.status(400).json({ error: 'Slika je obavezna' });
     const userId = req.user.id;
+
+    // Convert base64 to file on disk
+    image_url = saveBase64Media(image_url, 'posts');
+
     const insertRes = await pool.query(`INSERT INTO posts (user_id, caption, image_url, location) VALUES ($1,$2,$3,$4) RETURNING id, caption, image_url, location, likes_count, comments_count, created_at`, [userId, caption||'', image_url, location||'Kalesija (Babajići)']);
     const newPost = insertRes.rows[0];
     const u = (await pool.query('SELECT nickname, full_name, avatar FROM users WHERE id=$1', [userId])).rows[0];
@@ -390,7 +435,6 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     } else {
       await pool.query('INSERT INTO likes (post_id, user_id) VALUES ($1, $2) ON CONFLICT (post_id, user_id) DO NOTHING', [postId, userId]);
       liked = true;
-      // Trigger notification to post owner
       await createNotification({ userId: postOwnerId, actorId: userId, type: 'post_like', postId });
     }
 
@@ -421,7 +465,6 @@ app.post('/api/posts/:id/comment', authenticateToken, async (req, res) => {
     await pool.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = $1', [postId]);
     const u = (await pool.query('SELECT nickname FROM users WHERE id=$1', [userId])).rows[0];
 
-    // Trigger notification to post owner
     await createNotification({ userId: postOwnerId, actorId: userId, type: 'post_comment', postId, text });
 
     res.json({ success: true, comment: { ...insertRes.rows[0], user: u.nickname } });
@@ -438,9 +481,12 @@ app.get('/api/stories', async (req, res) => {
 
 app.post('/api/stories', authenticateToken, async (req, res) => {
   try {
-    const { media_url, text } = req.body;
+    let { media_url, text } = req.body;
     if (!media_url) return res.status(400).json({ error: 'Slika priče je obavezna' });
     const userId = req.user.id;
+
+    media_url = saveBase64Media(media_url, 'stories');
+
     const insertRes = await pool.query(`INSERT INTO stories (user_id, media_url, text) VALUES ($1,$2,$3) RETURNING id, media_url, text, created_at`, [userId, media_url, text||'']);
     const u = (await pool.query('SELECT nickname, avatar FROM users WHERE id=$1', [userId])).rows[0];
     res.json({ success: true, story: { ...insertRes.rows[0], username: u.nickname, avatar: u.avatar } });
@@ -475,13 +521,17 @@ app.get('/api/reels', async (req, res) => {
 
 app.post('/api/reels', authenticateToken, async (req, res) => {
   try {
-    const { video_url, caption, audio_title } = req.body;
-    if (!video_url) return res.status(400).json({ error: 'Video je obavezna' });
+    let { video_url, caption, audio_title } = req.body;
+    if (!video_url) return res.status(400).json({ error: 'Video ili slika je obavezna' });
     const userId = req.user.id;
+
+    // Save base64 video or image to disk inside uploads/reels
+    video_url = saveBase64Media(video_url, 'reels');
+
     const insertRes = await pool.query(`INSERT INTO reels (user_id, video_url, caption, audio_title) VALUES ($1,$2,$3,$4) RETURNING id, video_url, caption, audio_title, likes_count, comments_count, created_at`, [userId, video_url, caption||'', audio_title||'Selamy Original Audio']);
     const u = (await pool.query('SELECT nickname, avatar FROM users WHERE id=$1', [userId])).rows[0];
-    res.json({ success: true, reel: { id: insertRes.rows[0].id, video: insertRes.rows[0].video_url, caption: insertRes.rows[0].caption, audio: insertRes.rows[0].audio_title, likes: insertRes.rows[0].likes_count, author: u.nickname, avatar: u.avatar, comments: [] } });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Greška pri kreiranju reel-a' }); }
+    res.json({ success: true, reel: { id: insertRes.rows[0].id, video_url: insertRes.rows[0].video_url, video: insertRes.rows[0].video_url, caption: insertRes.rows[0].caption, audio: insertRes.rows[0].audio_title, likes: insertRes.rows[0].likes_count, author: u.nickname, avatar: u.avatar, comments: [] } });
+  } catch (err) { console.error('Post reel error:', err); res.status(500).json({ error: 'Greška pri kreiranju reel-a' }); }
 });
 
 app.post('/api/reels/:id/like', authenticateToken, async (req, res) => {
