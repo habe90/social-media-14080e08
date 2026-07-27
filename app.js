@@ -16,6 +16,7 @@ import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.j
 import { registerUser, loginUser, logoutUser, fetchCurrentUser, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
 
 document.addEventListener('DOMContentLoaded', initApp);
+if (document.readyState !== 'loading') initApp();
 
 async function initApp() {
   detectUserPreciseLocation(true);
@@ -107,22 +108,22 @@ function setupPasswordToggleListeners() {
 function setupFileUploadListeners() {
   // POST
   const pf = document.getElementById('post-file-input'), pd = document.getElementById('post-dropzone'), pbtn = document.getElementById('btn-select-post-file'), ppb = document.getElementById('post-preview-box'), ppi = document.getElementById('post-preview-img'), poi = document.getElementById('post-opt-info'), prm = document.getElementById('btn-remove-post-file');
-  if (pbtn&&pf) pbtn.onclick = e => { e.stopPropagation();  pf.click(); };
-  if (pd&&pf) { pd.onclick = () => {  pf.click(); }; ['dragenter','dragover'].forEach(ev => pd.addEventListener(ev, e => { e.preventDefault(); pd.classList.add('dragover'); })); ['dragleave','drop'].forEach(ev => pd.addEventListener(ev, e => { e.preventDefault(); pd.classList.remove('dragover'); })); pd.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) handlePostFile(f); }); pf.onchange = e => { if (e.target.files?.[0]) handlePostFile(e.target.files[0]); }; }
+  if (pbtn&&pf) pbtn.onclick = e => { e.stopPropagation(); playSound('click'); pf.click(); };
+  if (pd&&pf) { pd.onclick = () => { playSound('click'); pf.click(); }; ['dragenter','dragover'].forEach(ev => pd.addEventListener(ev, e => { e.preventDefault(); pd.classList.add('dragover'); })); ['dragleave','drop'].forEach(ev => pd.addEventListener(ev, e => { e.preventDefault(); pd.classList.remove('dragover'); })); pd.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) handlePostFile(f); }); pf.onchange = e => { if (e.target.files?.[0]) handlePostFile(e.target.files[0]); }; }
   async function handlePostFile(f) { if (!f.type.startsWith('image/')) { showToast('Odaberite sliku.'); return; } try { showToast('⚡ Sažimam...'); const c = await compressImageFile(f,1080,0.78); state.uploadedMedia.post={type:'image',url:c.dataUrl}; if(ppi)ppi.src=c.dataUrl; if(poi)poi.innerHTML=`<i class="fa-solid fa-bolt"></i> <span>${c.origKB}KB → <strong>${c.compKB}KB</strong> (${c.savings}% uštede)</span>`; if(pd)pd.classList.add('hidden'); if(ppb)ppb.classList.remove('hidden'); playSound('pop'); showToast(`Spremno (${c.savings}% uštede)!`); } catch { showToast('Greška.'); } }
-  if (prm) prm.onclick = () => {  state.uploadedMedia.post=null; pf.value=''; pd.classList.remove('hidden'); ppb.classList.add('hidden'); };
+  if (prm) prm.onclick = () => { playSound('click'); state.uploadedMedia.post=null; pf.value=''; pd.classList.remove('hidden'); ppb.classList.add('hidden'); };
 
   // STORY
   const sf = document.getElementById('story-file-input'), sd = document.getElementById('story-dropzone'), sbtn = document.getElementById('btn-select-story-file'), spb = document.getElementById('story-preview-box'), spi = document.getElementById('story-preview-img'), soi = document.getElementById('story-opt-info'), srm = document.getElementById('btn-remove-story-file');
-  if (sbtn&&sf) sbtn.onclick = e => { e.stopPropagation();  sf.click(); };
-  if (sd&&sf) { sd.onclick = () => {  sf.click(); }; ['dragenter','dragover'].forEach(ev => sd.addEventListener(ev, e => { e.preventDefault(); sd.classList.add('dragover'); })); ['dragleave','drop'].forEach(ev => sd.addEventListener(ev, e => { e.preventDefault(); sd.classList.remove('dragover'); })); sd.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) handleStoryFile(f); }); sf.onchange = e => { if (e.target.files?.[0]) handleStoryFile(e.target.files[0]); }; }
+  if (sbtn&&sf) sbtn.onclick = e => { e.stopPropagation(); playSound('click'); sf.click(); };
+  if (sd&&sf) { sd.onclick = () => { playSound('click'); sf.click(); }; ['dragenter','dragover'].forEach(ev => sd.addEventListener(ev, e => { e.preventDefault(); sd.classList.add('dragover'); })); ['dragleave','drop'].forEach(ev => sd.addEventListener(ev, e => { e.preventDefault(); sd.classList.remove('dragover'); })); sd.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) handleStoryFile(f); }); sf.onchange = e => { if (e.target.files?.[0]) handleStoryFile(e.target.files[0]); }; }
   async function handleStoryFile(f) { if (!f.type.startsWith('image/')) { showToast('Odaberite sliku.'); return; } try { showToast('⚡ Pripremam...'); const c = await compressImageFile(f,1080,0.78); state.uploadedMedia.story={type:'image',url:c.dataUrl}; if(spi)spi.src=c.dataUrl; if(soi)soi.innerHTML=`<i class="fa-solid fa-bolt"></i> <span>${c.origKB}KB → <strong>${c.compKB}KB</strong> (${c.savings}% uštede)</span>`; if(sd)sd.classList.add('hidden'); if(spb)spb.classList.remove('hidden'); playSound('pop'); showToast(`Spremno (${c.savings}% uštede)!`); } catch { showToast('Greška.'); } }
-  if (srm) srm.onclick = () => {  state.uploadedMedia.story=null; sf.value=''; sd.classList.remove('hidden'); spb.classList.add('hidden'); };
+  if (srm) srm.onclick = () => { playSound('click'); state.uploadedMedia.story=null; sf.value=''; sd.classList.remove('hidden'); spb.classList.add('hidden'); };
 
   // REEL
   const rf = document.getElementById('reel-file-input'), rd = document.getElementById('reel-dropzone'), rbtn = document.getElementById('btn-select-reel-file'), rpb = document.getElementById('reel-preview-box'), rpv = document.getElementById('reel-preview-video'), rpi = document.getElementById('reel-preview-img'), roi = document.getElementById('reel-opt-info'), rrm = document.getElementById('btn-remove-reel-file');
-  if (rbtn&&rf) rbtn.onclick = e => { e.stopPropagation();  rf.click(); };
-  if (rd&&rf) { rd.onclick = () => {  rf.click(); }; ['dragenter','dragover'].forEach(ev => rd.addEventListener(ev, e => { e.preventDefault(); rd.classList.add('dragover'); })); ['dragleave','drop'].forEach(ev => rd.addEventListener(ev, e => { e.preventDefault(); rd.classList.remove('dragover'); })); rd.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) handleReelFile(f); }); rf.onchange = e => { if (e.target.files?.[0]) handleReelFile(e.target.files[0]); }; }
+  if (rbtn&&rf) rbtn.onclick = e => { e.stopPropagation(); playSound('click'); rf.click(); };
+  if (rd&&rf) { rd.onclick = () => { playSound('click'); rf.click(); }; ['dragenter','dragover'].forEach(ev => rd.addEventListener(ev, e => { e.preventDefault(); rd.classList.add('dragover'); })); ['dragleave','drop'].forEach(ev => rd.addEventListener(ev, e => { e.preventDefault(); rd.classList.remove('dragover'); })); rd.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) handleReelFile(f); }); rf.onchange = e => { if (e.target.files?.[0]) handleReelFile(e.target.files[0]); }; }
   async function handleReelFile(f) {
     const isV = f.type.startsWith('video/'), isI = f.type.startsWith('image/');
     if (!isV&&!isI) { showToast('Odaberite video ili sliku.'); return; }
@@ -156,15 +157,15 @@ function setupFileUploadListeners() {
     }
     if (rd) rd.classList.add('hidden'); if (rpb) rpb.classList.remove('hidden');
   }
-  if (rrm) rrm.onclick = () => {  state.uploadedMedia.reel=null; rf.value=''; rd.classList.remove('hidden'); rpb.classList.add('hidden'); };
+  if (rrm) rrm.onclick = () => { playSound('click'); state.uploadedMedia.reel=null; rf.value=''; rd.classList.remove('hidden'); rpb.classList.add('hidden'); };
 }
 
 // ======== EVENTS ========
 function setupEventListeners() {
-  document.addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { e.preventDefault();  switchTab(t.getAttribute('data-tab')); } });
-  document.getElementById('btn-mobile-location')?.addEventListener('click', () => {  detectUserPreciseLocation(false); });
-  document.getElementById('btn-update-prof-gps')?.addEventListener('click', () => {  detectUserPreciseLocation(false); });
-  document.getElementById('btn-get-post-gps')?.addEventListener('click', () => {  detectUserPreciseLocation(false); if (state.currentUser.location) { const pl = document.getElementById('post-location'); if (pl) pl.value = state.currentUser.location.text; } });
+  document.addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { e.preventDefault(); playSound('click'); switchTab(t.getAttribute('data-tab')); } });
+  document.getElementById('btn-mobile-location')?.addEventListener('click', () => { playSound('click'); detectUserPreciseLocation(false); });
+  document.getElementById('btn-update-prof-gps')?.addEventListener('click', () => { playSound('click'); detectUserPreciseLocation(false); });
+  document.getElementById('btn-get-post-gps')?.addEventListener('click', () => { playSound('click'); detectUserPreciseLocation(false); if (state.currentUser.location) { const pl = document.getElementById('post-location'); if (pl) pl.value = state.currentUser.location.text; } });
   
   const checkAuthAndOpenCreate = (e) => {
     if (e) e.preventDefault();
@@ -173,7 +174,7 @@ function setupEventListeners() {
       document.getElementById('login-overlay')?.classList.remove('hidden');
       return;
     }
-    
+    playSound('click');
     openModal(document.getElementById('create-modal'));
     if (state.currentUser.location) {
       const pl = document.getElementById('post-location');
@@ -185,28 +186,28 @@ function setupEventListeners() {
   document.getElementById('btn-mobile-create')?.addEventListener('click', checkAuthAndOpenCreate);
 
   const tp=document.getElementById('tab-create-post'),ts=document.getElementById('tab-create-story'),tr=document.getElementById('tab-create-reel'),fp=document.getElementById('create-post-form'),fs=document.getElementById('create-story-form'),fr=document.getElementById('create-reel-form');
-  if(tp&&ts&&tr){tp.onclick=()=>{tp.classList.add('active');ts.classList.remove('active');tr.classList.remove('active');fp.classList.remove('hidden');fs.classList.add('hidden');fr.classList.add('hidden');};ts.onclick=()=>{ts.classList.add('active');tp.classList.remove('active');tr.classList.remove('active');fs.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};tr.onclick=()=>{tr.classList.add('active');tp.classList.remove('active');ts.classList.remove('active');fr.classList.remove('hidden');fp.classList.add('hidden');fs.classList.add('hidden');};}
+  if(tp&&ts&&tr){tp.onclick=()=>{playSound('click');tp.classList.add('active');ts.classList.remove('active');tr.classList.remove('active');fp.classList.remove('hidden');fs.classList.add('hidden');fr.classList.add('hidden');};ts.onclick=()=>{playSound('click');ts.classList.add('active');tp.classList.remove('active');tr.classList.remove('active');fs.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};tr.onclick=()=>{playSound('click');tr.classList.add('active');tp.classList.remove('active');ts.classList.remove('active');fr.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};}
 
   document.getElementById('btn-submit-post')?.addEventListener('click', handleCreatePost);
   document.getElementById('btn-submit-story')?.addEventListener('click', handleCreateStory);
   document.getElementById('btn-submit-reel')?.addEventListener('click', handleCreateReel);
-  document.querySelectorAll('.btn-close-modal').forEach(b => b.onclick = () => {  closeAllModals(); });
+  document.querySelectorAll('.btn-close-modal').forEach(b => b.onclick = () => { playSound('click'); closeAllModals(); });
   document.getElementById('btn-edit-profile')?.addEventListener('click', () => {
     if (!state.currentUser.loggedIn) {
       showToast('Molimo prijavite se.');
       document.getElementById('login-overlay')?.classList.remove('hidden');
       return;
     }
-     openModal(document.getElementById('edit-profile-modal'));
+    playSound('click'); openModal(document.getElementById('edit-profile-modal'));
   });
   document.getElementById('btn-save-profile')?.addEventListener('click', () => { const n=document.getElementById('edit-fullname').value.trim(),u=document.getElementById('edit-username').value.trim(),e=document.getElementById('edit-email')?.value.trim(),p=document.getElementById('edit-phone')?.value.trim(),b=document.getElementById('edit-bio').value.trim(); state.currentUser.fullname=n||state.currentUser.fullname; state.currentUser.username=u||state.currentUser.username; if(e)state.currentUser.email=e; if(p)state.currentUser.phone=p; state.currentUser.bio=b||state.currentUser.bio; updateProfileUI(); playSound('notification'); closeAllModals(); showToast('Profil ažuriran!'); });
 
   // Auth
   const lo=document.getElementById('login-overlay'),lm=document.getElementById('logout-modal');
-  document.getElementById('btn-logout-sidebar')?.addEventListener('click', e => { e.preventDefault();  openModal(lm); });
-  document.getElementById('btn-logout-prof')?.addEventListener('click', e => { e.preventDefault();  openModal(lm); });
+  document.getElementById('btn-logout-sidebar')?.addEventListener('click', e => { e.preventDefault(); playSound('click'); openModal(lm); });
+  document.getElementById('btn-logout-prof')?.addEventListener('click', e => { e.preventDefault(); playSound('click'); openModal(lm); });
   document.getElementById('btn-confirm-logout')?.addEventListener('click', async () => {
-    
+    playSound('click');
     await logoutUser();
     state.currentUser.loggedIn = false;
     state.currentUser.id = null;
@@ -222,7 +223,7 @@ function setupEventListeners() {
   });
 
   const atl=document.getElementById('auth-tab-login'),atr=document.getElementById('auth-tab-register'),afl=document.getElementById('auth-form-login'),afr=document.getElementById('auth-form-register');
-  const showAT = type => {  if(type==='login'){atl.classList.add('active');atr.classList.remove('active');afl.classList.remove('hidden');afr.classList.add('hidden');}else{atr.classList.add('active');atl.classList.remove('active');afr.classList.remove('hidden');afl.classList.add('hidden');} };
+  const showAT = type => { playSound('click'); if(type==='login'){atl.classList.add('active');atr.classList.remove('active');afl.classList.remove('hidden');afr.classList.add('hidden');}else{atr.classList.add('active');atl.classList.remove('active');afr.classList.remove('hidden');afl.classList.add('hidden');} };
   atl?.addEventListener('click',()=>showAT('login')); atr?.addEventListener('click',()=>showAT('register'));
   document.getElementById('link-goto-register')?.addEventListener('click',e=>{e.preventDefault();showAT('register');});
   document.getElementById('link-goto-login')?.addEventListener('click',e=>{e.preventDefault();showAT('login');});
