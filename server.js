@@ -121,7 +121,7 @@ async function createNotification({ userId, actorId, type, postId = null, reelId
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '4.7' });
+  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '5.0' });
 });
 
 // ========= AUTH ROUTES =========
@@ -232,6 +232,186 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
     const r = await pool.query('SELECT id, full_name, nickname, email, phone, avatar, bio, location FROM users WHERE id=$1', [req.user.id]);
     res.json({ success: true, user: r.rows[0] });
   } catch (err) { res.status(500).json({ error: 'Greška pri ažuriranju profila' }); }
+});
+
+// ========= USER SEARCH =========
+app.get('/api/users/search', authenticateToken, async (req, res) => {
+  try {
+    const q = req.query.q?.trim() || '';
+    const userId = req.user.id;
+    if (!q) {
+      const allUsers = await pool.query(`
+        SELECT id, nickname, full_name, avatar, bio
+        FROM users
+        WHERE id != $1
+        ORDER BY full_name ASC
+        LIMIT 20
+      `, [userId]);
+      return res.json({ users: allUsers.rows });
+    }
+    const qPattern = `%${q}%`;
+    const searchRes = await pool.query(`
+      SELECT id, nickname, full_name, avatar, bio
+      FROM users
+      WHERE id != $1 AND (nickname ILIKE $2 OR full_name ILIKE $2)
+      ORDER BY nickname ASC
+      LIMIT 20
+    `, [userId, qPattern]);
+    res.json({ users: searchRes.rows });
+  } catch (err) {
+    console.error('Search users error:', err);
+    res.status(500).json({ error: 'Greška pri pretrazi korisnika' });
+  }
+});
+
+// ========= MESSAGES / DIRECT CHAT API =========
+// 1. Fetch conversations list for current user
+app.get('/api/messages/conversations', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const convsRes = await pool.query(`
+      WITH recent_messages AS (
+        SELECT DISTINCT ON (
+          LEAST(sender_id, receiver_id),
+          GREATEST(sender_id, receiver_id)
+        )
+          id, sender_id, receiver_id, text, media_url, is_read, created_at,
+          CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END AS partner_id
+        FROM messages
+        WHERE sender_id = $1 OR receiver_id = $1
+        ORDER BY
+          LEAST(sender_id, receiver_id),
+          GREATEST(sender_id, receiver_id),
+          created_at DESC
+      )
+      SELECT 
+        rm.id AS last_message_id,
+        rm.text AS last_message_text,
+        rm.media_url AS last_message_media,
+        rm.sender_id AS last_message_sender_id,
+        rm.created_at AS last_message_time,
+        u.id AS partner_id,
+        u.nickname AS partner_nickname,
+        u.full_name AS partner_full_name,
+        u.avatar AS partner_avatar,
+        (
+          SELECT COUNT(*)::int
+          FROM messages
+          WHERE sender_id = u.id AND receiver_id = $1 AND is_read = false
+        ) AS unread_count
+      FROM recent_messages rm
+      JOIN users u ON u.id = rm.partner_id
+      ORDER BY rm.created_at DESC
+    `, [userId]);
+
+    res.json({ conversations: convsRes.rows });
+  } catch (err) {
+    console.error('GET /api/messages/conversations error:', err);
+    res.status(500).json({ error: 'Greška pri učitavanju razgovora' });
+  }
+});
+
+// 2. Fetch unread messages total count
+app.get('/api/messages/unread-count', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const countRes = await pool.query(`
+      SELECT COUNT(*)::int AS unread_count
+      FROM messages
+      WHERE receiver_id = $1 AND is_read = false
+    `, [userId]);
+    res.json({ unread_count: countRes.rows[0]?.unread_count || 0 });
+  } catch (err) {
+    res.status(500).json({ error: 'Greška pri učitavanju broja poruka' });
+  }
+});
+
+// 3. Fetch message thread with a specific partner and mark incoming as read
+app.get('/api/messages/:otherUserId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    let partnerId = parseInt(req.params.otherUserId, 10);
+
+    // If otherUserId is string nickname instead of integer ID
+    if (isNaN(partnerId)) {
+      const userCheck = await pool.query('SELECT id FROM users WHERE nickname = $1', [req.params.otherUserId]);
+      if (userCheck.rows.length === 0) return res.status(404).json({ error: 'Korisnik nije pronađen' });
+      partnerId = userCheck.rows[0].id;
+    }
+
+    const partnerRes = await pool.query('SELECT id, nickname, full_name, avatar FROM users WHERE id = $1', [partnerId]);
+    if (!partnerRes.rows[0]) return res.status(404).json({ error: 'Korisnik nije pronađen' });
+
+    // Mark unread incoming messages from this partner as read
+    await pool.query(`
+      UPDATE messages
+      SET is_read = true
+      WHERE sender_id = $1 AND receiver_id = $2 AND is_read = false
+    `, [partnerId, userId]);
+
+    // Fetch message history
+    const msgsRes = await pool.query(`
+      SELECT m.id, m.sender_id, m.receiver_id, m.text, m.media_url, m.is_read, m.created_at,
+             u_send.nickname AS sender_nickname, u_send.avatar AS sender_avatar
+      FROM messages m
+      JOIN users u_send ON m.sender_id = u_send.id
+      WHERE (m.sender_id = $1 AND m.receiver_id = $2)
+         OR (m.sender_id = $2 AND m.receiver_id = $1)
+      ORDER BY m.created_at ASC
+    `, [userId, partnerId]);
+
+    res.json({
+      partner: partnerRes.rows[0],
+      messages: msgsRes.rows
+    });
+  } catch (err) {
+    console.error('GET /api/messages/:otherUserId error:', err);
+    res.status(500).json({ error: 'Greška pri učitavanju poruka' });
+  }
+});
+
+// 4. Send message to a partner
+app.post('/api/messages', authenticateToken, async (req, res) => {
+  try {
+    const senderId = req.user.id;
+    let { receiver_id, receiver_nickname, text, media_url } = req.body;
+
+    let targetId = parseInt(receiver_id, 10);
+    if (isNaN(targetId) && receiver_nickname) {
+      const userCheck = await pool.query('SELECT id FROM users WHERE nickname = $1', [receiver_nickname.toLowerCase().trim()]);
+      if (userCheck.rows.length === 0) return res.status(404).json({ error: 'Primalac nije pronađen' });
+      targetId = userCheck.rows[0].id;
+    }
+
+    if (!targetId) return res.status(400).json({ error: 'Primalac poruke je obavezan' });
+    if (!text && !media_url) return res.status(400).json({ error: 'Poruka ili slika je obavezna' });
+
+    if (media_url && media_url.startsWith('data:')) {
+      media_url = saveBase64Media(media_url, 'messages');
+    }
+
+    const insRes = await pool.query(`
+      INSERT INTO messages (sender_id, receiver_id, text, media_url)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, sender_id, receiver_id, text, media_url, is_read, created_at
+    `, [senderId, targetId, text || '', media_url || null]);
+
+    const newMsg = insRes.rows[0];
+
+    // Notification for receiver
+    await createNotification({
+      userId: targetId,
+      actorId: senderId,
+      type: 'direct_message',
+      text: text ? (text.length > 50 ? text.substring(0, 47) + '...' : text) : '📷 Slika'
+    });
+
+    res.json({ success: true, message: newMsg });
+  } catch (err) {
+    console.error('POST /api/messages error:', err);
+    res.status(500).json({ error: 'Greška pri slanju poruke' });
+  }
 });
 
 // ========= NOTIFICATIONS API =========
