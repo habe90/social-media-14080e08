@@ -105,6 +105,7 @@ export async function loadAndRenderNotifications() {
     const viewBtn = item.querySelector('.btn-view-notif-post');
     if (viewBtn) {
       viewBtn.onclick = () => {
+        playSound('click');
         openPostDetailModal(n.post_id);
       };
     }
@@ -118,6 +119,7 @@ export async function loadAndRenderNotifications() {
   const markBtn = document.getElementById('btn-mark-notifs-read');
   if (markBtn) {
     markBtn.onclick = async () => {
+      playSound('click');
       await markNotificationsReadAPI();
       updateUnreadDots(0);
       await loadAndRenderNotifications();
