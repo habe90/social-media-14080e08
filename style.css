@@ -1670,12 +1670,15 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   border-radius: 18px;
   font-size: 14px;
   line-height: 1.4;
+  word-break: break-word;
 }
 
 .msg-bubble.incoming {
   background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
   align-self: flex-start;
   border-bottom-left-radius: 4px;
+  color: var(--text-main);
 }
 
 .msg-bubble.outgoing {
@@ -1702,6 +1705,10 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   color: var(--text-main);
   outline: none;
   font-size: 16px !important;
+}
+
+.user-search-row:hover {
+  background-color: var(--bg-card-hover);
 }
 
 /* NOTIFICATIONS */
@@ -2409,6 +2416,19 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   .messages-container {
     grid-template-columns: 1fr;
     height: calc(100dvh - 140px);
+    position: relative;
+  }
+
+  .chats-sidebar.mobile-chat-active {
+    display: none !important;
+  }
+
+  .chats-sidebar {
+    width: 100%;
+  }
+
+  .btn-back-chats {
+    display: inline-flex !important;
   }
 
   .reels-wrapper {
