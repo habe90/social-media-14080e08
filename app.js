@@ -7,7 +7,7 @@ import { initPrayerTimesService, detectUserPreciseLocation } from './src/js/serv
 import { initForumModule } from './src/js/modules/forum.js';
 import { initChallengesModule } from './src/js/modules/challenges.js';
 import { initStoriesModule, renderStories } from './src/js/modules/stories.js';
-import { initReelsModule, renderReels } from './src/js/modules/reels.js';
+import { initReelsModule, renderReels, loadReelsFromBackend } from './src/js/modules/reels.js';
 import { initFeedModule, renderPosts } from './src/js/modules/feed.js';
 import { initExploreModule, loadExploreData } from './src/js/modules/explore.js';
 import { initNotificationsModule, loadAndRenderNotifications } from './src/js/modules/notifications.js';
@@ -129,7 +129,7 @@ function setupFileUploadListeners() {
     if (!isV&&!isI) { showToast('Odaberite video ili sliku.'); return; }
     const mb = f.size / (1024 * 1024);
     if (isV) {
-      if (mb > 25) { showToast('Video je prevelik (max 25MB).'); return; }
+      if (mb > 35) { showToast('Video je prevelik (max 35MB).'); return; }
       showToast('⚡ Pripremam video...');
       try {
         const dataUrl = await new Promise((resolve, reject) => {
@@ -320,12 +320,8 @@ async function handleCreatePost() {
   showToast('Spremam...');
   const bp = await createPostAPI({ caption: c, image_url: u, location: l });
   if (bp) {
-    state.posts.unshift({
-      id: bp.id, author: state.currentUser.username, avatar: state.currentUser.avatar,
-      verified: true, location: l, image: u, caption: c || 'Nova objava! ✨',
-      likes: 0, likedByMe: false, saved: false, timeAgo: 'UPRAVO SADA', comments: []
-    });
-    renderPosts(); renderProfileGrid(); loadExploreData(); resetUploadState('post'); closeAllModals();
+    await initFeedModule();
+    renderProfileGrid(); loadExploreData(); resetUploadState('post'); closeAllModals();
     document.getElementById('post-caption').value = ''; document.getElementById('post-location').value = '';
     showToast('Objava sačuvana u bazi!'); switchTab('home');
   } else {
@@ -345,11 +341,8 @@ async function handleCreateStory() {
   showToast('Spremam...');
   const bs = await createStoryAPI({ media_url: u, text: t });
   if (bs) {
-    let my = state.stories.find(s => s.isMe);
-    if (!my) { my = { id: 'my-story', isMe: true, username: 'Vaša priča', avatar: state.currentUser.avatar, hasUnseen: true, slides: [] }; state.stories.unshift(my); }
-    my.slides.push({ id: bs.id, media: u, time: 'Upravo', text: t });
-    my.hasUnseen = true;
-    renderStories(); resetUploadState('story'); closeAllModals();
+    await initStoriesModule();
+    resetUploadState('story'); closeAllModals();
     document.getElementById('story-text-input').value = '';
     showToast('Priča sačuvana u bazi!');
   } else {
@@ -369,7 +362,7 @@ async function handleCreateReel() {
   showToast('Spremam Reel u bazu...');
   const br = await createReelAPI({ video_url: u, caption: c, audio_title: a });
   if (br) {
-    state.reels.unshift({ id: br.id, author: state.currentUser.username, avatar: state.currentUser.avatar, caption: c, video: u, audio: a, likes: 0, comments: [] });
+    await loadReelsFromBackend();
     renderReels(); resetUploadState('reel'); closeAllModals();
     document.getElementById('reel-caption-input').value = ''; document.getElementById('reel-audio-input').value = '';
     showToast('Reel trajno sačuvan u bazi!'); switchTab('reels');
