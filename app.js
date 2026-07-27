@@ -11,7 +11,7 @@ import { initReelsModule, renderReels, loadReelsFromBackend } from './src/js/mod
 import { initFeedModule, renderPosts } from './src/js/modules/feed.js';
 import { initExploreModule, loadExploreData } from './src/js/modules/explore.js';
 import { initNotificationsModule, loadAndRenderNotifications } from './src/js/modules/notifications.js';
-import { initChatModule } from './src/js/modules/chat.js';
+import { initChatModule, loadConversations } from './src/js/modules/chat.js';
 import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.js';
 import { registerUser, loginUser, logoutUser, fetchCurrentUser, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
 
@@ -52,7 +52,7 @@ async function initApp() {
   await initReelsModule();
   await initExploreModule();
   await initNotificationsModule();
-  initChatModule();
+  await initChatModule();
   initProfileModule();
   setupEventListeners();
   setupFileUploadListeners();
@@ -252,6 +252,7 @@ function setupEventListeners() {
       await initForumModule();
       await initExploreModule();
       await initNotificationsModule();
+      await initChatModule();
       renderProfileGrid();
       switchTab('home');
     } else {
@@ -281,6 +282,7 @@ function setupEventListeners() {
       await initForumModule();
       await initExploreModule();
       await initNotificationsModule();
+      await initChatModule();
       renderProfileGrid();
       switchTab('home');
     } else {
@@ -304,6 +306,9 @@ function switchTab(tab) {
   }
   if (tab === 'notifications') {
     loadAndRenderNotifications();
+  }
+  if (tab === 'messages') {
+    loadConversations();
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
