@@ -53,6 +53,7 @@ async function initApp() {
   renderExploreGrid();
   setupEventListeners();
   setupFileUploadListeners();
+  setupPasswordToggleListeners();
 }
 
 function updateProfileUI() {
@@ -71,6 +72,32 @@ function updateProfileUI() {
   ['edit-fullname','edit-username','edit-email','edit-phone'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = state.currentUser[id.replace('edit-','')] || '';
+  });
+}
+
+function setupPasswordToggleListeners() {
+  document.querySelectorAll('.btn-toggle-pw').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetId = btn.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      if (!input) return;
+      const icon = btn.querySelector('i');
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (icon) {
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        }
+      } else {
+        input.type = 'password';
+        if (icon) {
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      }
+    });
   });
 }
 
