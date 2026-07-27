@@ -275,42 +275,43 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
     let whereClauses = [];
-    let params = [currentUserId];
-    let paramIndex = 2;
+    let filterParams = [];
 
     if (q) {
-      whereClauses.push(`(p.caption ILIKE $${paramIndex} OR u.nickname ILIKE $${paramIndex} OR u.full_name ILIKE $${paramIndex} OR p.location ILIKE $${paramIndex})`);
-      params.push(`%${q}%`);
-      paramIndex++;
+      filterParams.push(`%${q}%`);
+      const idx = filterParams.length;
+      whereClauses.push(`(p.caption ILIKE $${idx} OR u.nickname ILIKE $${idx} OR u.full_name ILIKE $${idx} OR p.location ILIKE $${idx})`);
     }
 
     if (tag && tag !== 'all' && tag !== 'sve') {
       const cleanTag = tag.replace(/^#/, '');
-      whereClauses.push(`(p.caption ILIKE $${paramIndex})`);
-      params.push(`%#${cleanTag}%`);
-      paramIndex++;
+      filterParams.push(`%#${cleanTag}%`);
+      whereClauses.push(`(p.caption ILIKE $${filterParams.length})`);
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const userIdParamNum = filterParams.length + 1;
+    const limitParamNum = filterParams.length + 2;
+    const offsetParamNum = filterParams.length + 3;
 
     const postsQuery = `
       SELECT p.id, p.caption, p.image_url, p.location, p.comments_count, p.created_at,
              u.nickname AS author, u.full_name, u.avatar,
              (SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) AS likes_count,
-             CASE WHEN $1::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $1::int) ELSE false END AS liked_by_me
+             CASE WHEN $${userIdParamNum}::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $${userIdParamNum}::int) ELSE false END AS liked_by_me
       FROM posts p
       JOIN users u ON p.user_id = u.id
       ${whereSql}
       ORDER BY ((SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) + p.comments_count) DESC, p.created_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      LIMIT $${limitParamNum} OFFSET $${offsetParamNum}
     `;
-    params.push(parseInt(limit, 10), offset);
+    const postsParams = [...filterParams, currentUserId, parseInt(limit, 10), offset];
 
-    const postsRes = await pool.query(postsQuery, params);
+    const postsRes = await pool.query(postsQuery, postsParams);
 
     const countQuery = `SELECT COUNT(*)::int FROM posts p JOIN users u ON p.user_id = u.id ${whereSql}`;
-    const countParams = params.slice(0, paramIndex - 1);
-    const countRes = await pool.query(countQuery, countParams);
+    const countRes = await pool.query(countQuery, filterParams);
     const total = countRes.rows[0]?.count || 0;
 
     const allCaptionsRes = await pool.query(`SELECT caption FROM posts WHERE caption ILIKE '%#%'`);
