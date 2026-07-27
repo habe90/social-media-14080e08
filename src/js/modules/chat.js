@@ -27,6 +27,7 @@ export function renderChatsList() {
     `;
 
     item.onclick = () => {
+      playSound('click');
       openChatWindow(chat.id);
     };
     container.appendChild(item);
