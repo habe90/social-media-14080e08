@@ -291,3 +291,64 @@ export async function createForumTopicAPI(topicData) {
     return data.topic;
   } catch (err) { return null; }
 }
+
+// 8. MESSAGES / CHAT & USER SEARCH
+export async function fetchConversationsAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/messages/conversations`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+export async function fetchMessagesAPI(otherUserId) {
+  try {
+    const res = await fetch(`${API_BASE}/messages/${otherUserId}`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+export async function sendMessageAPI(msgData) {
+  try {
+    const res = await fetch(`${API_BASE}/messages`, {
+      method: 'POST',
+      headers: getHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      body: JSON.stringify(msgData)
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+export async function fetchUnreadMessagesCountAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/messages/unread-count`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.unread_count || 0;
+  } catch (err) { return 0; }
+}
+
+export async function searchUsersAPI(query = '') {
+  try {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    const res = await fetch(`${API_BASE}/users/search?${params.toString()}`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
