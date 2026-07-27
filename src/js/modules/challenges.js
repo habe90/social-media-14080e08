@@ -2,18 +2,8 @@
 
 import { state } from '../state.js';
 import { showToast } from '../utils/compressor.js';
-import { fetchDailyChallengesAPI, toggleDailyChallengeAPI } from '../services/api.js';
 
-export async function initChallengesModule() {
-  await loadDailyChallenges();
-}
-
-export async function loadDailyChallenges() {
-  const data = await fetchDailyChallengesAPI();
-  if (data && Array.isArray(data.challenges)) {
-    state.dailyChallenges = data.challenges;
-    if (data.stats) state.challengeStats = data.stats;
-  }
+export function initChallengesModule() {
   renderChallengesWidget();
 }
 
@@ -23,13 +13,7 @@ export function renderChallengesWidget() {
 
   const completedCount = state.dailyChallenges.filter(c => c.completed).length;
   const totalCount = state.dailyChallenges.length;
-  const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const { totalCompletedAllTime = 0, streakDays = 0 } = state.challengeStats || {};
-
-  if (totalCount === 0) {
-    container.innerHTML = '';
-    return;
-  }
+  const percent = Math.round((completedCount / totalCount) * 100);
 
   container.innerHTML = `
     <div class="challenges-card">
@@ -46,14 +30,9 @@ export function renderChallengesWidget() {
         </div>
       </div>
 
-      <div class="challenges-stats-row">
-        <span><i class="fa-solid fa-fire"></i> Niz: ${streakDays} ${streakDays === 1 ? 'dan' : 'dana'}</span>
-        <span><i class="fa-solid fa-trophy"></i> Ukupno završeno: ${totalCompletedAllTime}</span>
-      </div>
-
       <div class="challenges-list">
-        ${state.dailyChallenges.map((ch) => `
-          <div class="challenge-item ${ch.completed ? 'completed' : ''}" data-ch-id="${ch.id}">
+        ${state.dailyChallenges.map((ch, idx) => `
+          <div class="challenge-item ${ch.completed ? 'completed' : ''}" data-ch-index="${idx}">
             <div class="ch-check-box">
               <i class="fa-solid fa-check"></i>
             </div>
@@ -66,23 +45,13 @@ export function renderChallengesWidget() {
   `;
 
   container.querySelectorAll('.challenge-item').forEach(item => {
-    item.onclick = async () => {
-      if (!state.currentUser.loggedIn) {
-        showToast('Molimo prijavite se da biste pratili izazove.');
-        document.getElementById('login-overlay')?.classList.remove('hidden');
-        return;
+    item.onclick = () => {
+      const idx = parseInt(item.getAttribute('data-ch-index'), 10);
+      if (!isNaN(idx) && state.dailyChallenges[idx]) {
+        state.dailyChallenges[idx].completed = !state.dailyChallenges[idx].completed;
+        renderChallengesWidget();
+        showToast(state.dailyChallenges[idx].completed ? 'Čestitamo! Aktivnost je završena ✨' : 'Aktivnost poništena');
       }
-      const id = parseInt(item.getAttribute('data-ch-id'), 10);
-      const ch = state.dailyChallenges.find(c => c.id === id);
-      if (!ch) return;
-
-      const result = await toggleDailyChallengeAPI(id);
-      if (!result) { showToast('Greška pri ažuriranju izazova.'); return; }
-
-      ch.completed = result.completed;
-      if (result.stats) state.challengeStats = result.stats;
-      renderChallengesWidget();
-      showToast(ch.completed ? 'Čestitamo! Aktivnost je završena ✨' : 'Aktivnost poništena');
     };
   });
 }
