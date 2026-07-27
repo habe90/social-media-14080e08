@@ -58,11 +58,17 @@ export function renderStories() {
     const isMe = story.isMe;
     const storyEl = document.createElement('div'); storyEl.className = 'story-item';
     const ringClass = story.hasUnseen ? 'story-ring' : 'story-ring seen';
+
+    // Thumbnail = zadnja (najnovija) sličica sadržaja te priče; ako priča nema slajdova, koristi avatar.
+    const hasSlides = Array.isArray(story.slides) && story.slides.length > 0;
+    const thumb = hasSlides ? story.slides[story.slides.length - 1].media : story.avatar;
+
     if (isMe) {
-      storyEl.innerHTML = `<div class="${ringClass}"><img src="${story.avatar}" alt="${story.username}"><div class="add-story-badge" title="Dodaj novu priču"><i class="fa-solid fa-plus"></i></div></div><span class="story-username">${story.username}</span>`;
-      storyEl.onclick = () => { playSound('click'); story.slides?.length > 0 ? openStoryModal(idx) : (() => { const m = document.getElementById('create-modal'); if (m) m.classList.remove('hidden'); const ts = document.getElementById('tab-create-story'); if (ts) ts.click(); })(); };
+      // Moja priča: ako imam sadržaj -> prikaži thumbnail moje zadnje priče; ako nemam -> avatar + plus za dodavanje.
+      storyEl.innerHTML = `<div class="${ringClass}"><img src="${thumb}" alt="${story.username}" loading="lazy"><div class="add-story-badge" title="Dodaj novu priču"><i class="fa-solid fa-plus"></i></div></div><span class="story-username">${story.username}</span>`;
+      storyEl.onclick = () => { playSound('click'); hasSlides ? openStoryModal(idx) : (() => { const m = document.getElementById('create-modal'); if (m) m.classList.remove('hidden'); const ts = document.getElementById('tab-create-story'); if (ts) ts.click(); })(); };
     } else {
-      storyEl.innerHTML = `<div class="${ringClass}"><img src="${story.avatar}" alt="${story.username}"></div><span class="story-username">${story.username}</span>`;
+      storyEl.innerHTML = `<div class="${ringClass}"><img src="${thumb}" alt="${story.username}" loading="lazy"></div><span class="story-username">${story.username}</span>`;
       storyEl.onclick = () => { playSound('click'); openStoryModal(idx); };
     }
     storiesList.appendChild(storyEl);
