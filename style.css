@@ -563,20 +563,6 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   flex-shrink: 0;
 }
 
-.challenges-stats-row {
-  display: flex;
-  gap: 16px;
-  padding: 8px 0 12px 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.challenges-stats-row i {
-  color: var(--emerald-green);
-  margin-right: 4px;
-}
-
 .challenges-list {
   display: flex;
   flex-direction: column;
@@ -2302,17 +2288,15 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
 /* TOAST MESSAGES */
 .toast-container {
   position: fixed;
-  top: calc(16px + env(safe-area-inset-top));
-  right: 16px;
-  left: auto;
-  transform: none;
+  bottom: calc(75px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
   gap: 10px;
   z-index: 3000;
   width: 90%;
-  max-width: 360px;
+  max-width: 400px;
   pointer-events: none;
 }
 
@@ -2325,11 +2309,11 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   font-size: 14px;
   text-align: center;
   box-shadow: 0 8px 25px rgba(0, 132, 255, 0.4);
-  animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes slideDown {
-  from { transform: translateY(-20px); opacity: 0; }
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
@@ -2432,9 +2416,7 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   }
 
   .toast-container {
-    top: calc(56px + 12px + env(safe-area-inset-top));
-    right: 12px;
-    max-width: calc(100% - 24px);
+    bottom: calc(75px + env(safe-area-inset-bottom));
   }
 }
 
