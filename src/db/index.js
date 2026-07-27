@@ -98,6 +98,15 @@ export async function initDB() {
         is_read BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        text TEXT,
+        media_url TEXT,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     console.log('✅ PostgreSQL migracije uspešno izvršene');
@@ -122,7 +131,7 @@ export async function initDB() {
       userId = userRes.rows[0].id;
     }
 
-    // Create a second test user if not exists for notifications test
+    // Create a second test user if not exists
     const user2Res = await activePool.query('SELECT id FROM users WHERE nickname = $1', ['emina_k']);
     let user2Id;
     if (user2Res.rows.length === 0) {
@@ -161,6 +170,18 @@ export async function initDB() {
         ($1, 'https://assets.mixkit.co/videos/preview/mixkit-a-far-view-of-a-mosque-in-a-city-43152-large.mp4', 'Mir i tišina pred namaz 🕌✨', 'Duševni mir - Selamy Network', 24, 7)
       `, [userId]);
       console.log('✅ Inicijalni Reel video zapisi sačuvani u PostgreSQL bazi');
+    }
+
+    // Seed sample messages if messages table is empty
+    const msgsCountRes = await activePool.query('SELECT COUNT(*)::int AS count FROM messages');
+    if (msgsCountRes.rows[0].count === 0 && userId && user2Id) {
+      await activePool.query(`
+        INSERT INTO messages (sender_id, receiver_id, text, is_read, created_at) VALUES
+        ($2, $1, 'Es-selamu alejkum Halil! Kako ide rad na novoj aplikaciji? 😊', true, NOW() - INTERVAL '2 hours'),
+        ($1, $2, 'Alejkumusselam Emina! Odlično, sve funkcioniše super, radimo na novim opcijama! 🚀', true, NOW() - INTERVAL '1 hour'),
+        ($2, $1, 'Mašallah, drago mi je čuti! Ako treba bilo kakva pomoć javi. 💙', false, NOW() - INTERVAL '10 minutes')
+      `, [userId, user2Id]);
+      console.log('✅ Inicijalne poruke sačuvane u PostgreSQL bazi');
     }
 
   } catch (err) {
