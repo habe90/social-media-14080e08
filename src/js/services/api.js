@@ -66,7 +66,37 @@ export async function fetchCurrentUser() {
   } catch (err) { return null; }
 }
 
-// 2. POSTS + COMMENTS + LIKES
+// 2. EXPLORE
+export async function fetchExploreAPI({ q = '', tag = '', page = 1 } = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (tag) params.set('tag', tag);
+    params.set('page', page);
+    params.set('limit', 24);
+
+    const res = await fetch(`${API_BASE}/explore?${params.toString()}`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+export async function fetchPostByIdAPI(postId) {
+  try {
+    const res = await fetch(`${API_BASE}/posts/${postId}`, {
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.post;
+  } catch (err) { return null; }
+}
+
+// 3. POSTS + COMMENTS + LIKES
 export async function fetchPostsAPI() {
   try {
     const res = await fetch(`${API_BASE}/posts`, {
@@ -121,7 +151,7 @@ export async function commentPostAPI(postId, text) {
   } catch (err) { return null; }
 }
 
-// 3. STORIES
+// 4. STORIES
 export async function fetchStoriesAPI() {
   try {
     const res = await fetch(`${API_BASE}/stories`, { credentials: 'include' });
@@ -157,7 +187,7 @@ export async function commentStoryAPI(storyId, text) {
   } catch (err) { return null; }
 }
 
-// 4. REELS
+// 5. REELS
 export async function fetchReelsAPI() {
   try {
     const res = await fetch(`${API_BASE}/reels`, { credentials: 'include' });
@@ -215,7 +245,7 @@ export async function fetchReelCommentsAPI(reelId) {
   } catch (err) { return null; }
 }
 
-// 5. FORUM
+// 6. FORUM
 export async function fetchForumAPI() {
   try {
     const res = await fetch(`${API_BASE}/forum`, { credentials: 'include' });
