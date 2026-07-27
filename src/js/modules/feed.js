@@ -4,13 +4,22 @@ import { state } from '../state.js';
 import { showToast } from '../utils/compressor.js';
 import { playSound } from '../utils/sound.js';
 import { renderProfileGrid } from './profile.js';
-import { fetchPostsAPI, likePostAPI, commentPostAPI, createStoryAPI } from '../services/api.js';
+import { fetchPostsAPI, likePostAPI, commentPostAPI, createStoryAPI, fetchAjetDanaAPI } from '../services/api.js';
 
 export async function initFeedModule() {
   renderInspirationWidget();
+  loadAjetDana();
   await loadPostsFromBackend();
   renderPosts();
   renderSuggestions();
+}
+
+export async function loadAjetDana() {
+  const ajet = await fetchAjetDanaAPI();
+  if (ajet && ajet.text) {
+    state.dailyInspiration = { id: 'insp-' + ajet.source, type: ajet.type, source: ajet.source, text: ajet.text, arabic: ajet.arabic };
+    renderInspirationWidget();
+  }
 }
 
 export async function loadPostsFromBackend() {

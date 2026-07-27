@@ -291,3 +291,32 @@ export async function createForumTopicAPI(topicData) {
     return data.topic;
   } catch (err) { return null; }
 }
+
+// 8. AJET DANA + DNEVNI IZAZOVI
+export async function fetchAjetDanaAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/ajet-dana`, { credentials: 'include' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+export async function fetchDailyChallengesAPI() {
+  try {
+    const res = await fetch(`${API_BASE}/daily-challenges`, { credentials: 'include' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}
+
+export async function toggleDailyChallengeAPI(challengeId) {
+  try {
+    const res = await fetch(`${API_BASE}/daily-challenges/${challengeId}/toggle`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) { return null; }
+}

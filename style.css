@@ -563,6 +563,20 @@ button, .icon-btn, .btn-primary, .btn-secondary, .nav-item, .forum-chip, .tag-ch
   flex-shrink: 0;
 }
 
+.challenges-stats-row {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.challenges-stats-row i {
+  color: var(--emerald-green);
+  margin-right: 4px;
+}
+
 .challenges-list {
   display: flex;
   flex-direction: column;
