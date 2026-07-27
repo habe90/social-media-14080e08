@@ -167,14 +167,32 @@ function setupEventListeners() {
   document.getElementById('btn-update-prof-gps')?.addEventListener('click', () => { playSound('click'); detectUserPreciseLocation(false); });
   document.getElementById('btn-get-post-gps')?.addEventListener('click', () => { playSound('click'); detectUserPreciseLocation(false); if (state.currentUser.location) { const pl = document.getElementById('post-location'); if (pl) pl.value = state.currentUser.location.text; } });
   
-  const checkAuthAndOpenCreate = (e) => {
-    if (e) e.preventDefault();
+  const switchCreateTab = (tabName) => {
+    const tp = document.getElementById('tab-create-post');
+    const ts = document.getElementById('tab-create-story');
+    const tr = document.getElementById('tab-create-reel');
+    const fp = document.getElementById('create-post-form');
+    const fs = document.getElementById('create-story-form');
+    const fr = document.getElementById('create-reel-form');
+
+    if (tp) tp.classList.toggle('active', tabName === 'post');
+    if (ts) ts.classList.toggle('active', tabName === 'story');
+    if (tr) tr.classList.toggle('active', tabName === 'reel');
+
+    if (fp) fp.classList.toggle('hidden', tabName !== 'post');
+    if (fs) fs.classList.toggle('hidden', tabName !== 'story');
+    if (fr) fr.classList.toggle('hidden', tabName !== 'reel');
+  };
+
+  const checkAuthAndOpenCreate = (e, initialTab = 'post') => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     if (!state.currentUser.loggedIn) {
       showToast('Molimo prijavite se da biste objavljivali.');
       document.getElementById('login-overlay')?.classList.remove('hidden');
       return;
     }
     playSound('click');
+    switchCreateTab(initialTab);
     openModal(document.getElementById('create-modal'));
     if (state.currentUser.location) {
       const pl = document.getElementById('post-location');
@@ -182,11 +200,26 @@ function setupEventListeners() {
     }
   };
 
-  document.getElementById('btn-open-create')?.addEventListener('click', checkAuthAndOpenCreate);
-  document.getElementById('btn-mobile-create')?.addEventListener('click', checkAuthAndOpenCreate);
+  document.getElementById('btn-open-create')?.addEventListener('click', e => checkAuthAndOpenCreate(e, 'post'));
+  document.getElementById('btn-mobile-create')?.addEventListener('click', e => checkAuthAndOpenCreate(e, 'post'));
 
-  const tp=document.getElementById('tab-create-post'),ts=document.getElementById('tab-create-story'),tr=document.getElementById('tab-create-reel'),fp=document.getElementById('create-post-form'),fs=document.getElementById('create-story-form'),fr=document.getElementById('create-reel-form');
-  if(tp&&ts&&tr){tp.onclick=()=>{playSound('click');tp.classList.add('active');ts.classList.remove('active');tr.classList.remove('active');fp.classList.remove('hidden');fs.classList.add('hidden');fr.classList.add('hidden');};ts.onclick=()=>{playSound('click');ts.classList.add('active');tp.classList.remove('active');tr.classList.remove('active');fs.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};tr.onclick=()=>{playSound('click');tr.classList.add('active');tp.classList.remove('active');ts.classList.remove('active');fr.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};}
+  document.getElementById('tab-create-post')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    playSound('click');
+    switchCreateTab('post');
+  });
+
+  document.getElementById('tab-create-story')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    playSound('click');
+    switchCreateTab('story');
+  });
+
+  document.getElementById('tab-create-reel')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    playSound('click');
+    switchCreateTab('reel');
+  });
 
   document.getElementById('btn-submit-post')?.addEventListener('click', handleCreatePost);
   document.getElementById('btn-submit-story')?.addEventListener('click', handleCreateStory);
