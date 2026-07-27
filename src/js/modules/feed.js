@@ -109,7 +109,7 @@ export function renderPosts() {
       if (res && res.success) {
         post.likedByMe = res.liked;
         post.likes = res.likes_count;
-        playSound(res.liked ? 'like' : 'click');
+        if (res.liked) playSound('like');
 
         const heartIcon = card.querySelector('[data-act="like"] i');
         const likesCountEl = card.querySelector('.likes-count strong');
@@ -136,9 +136,9 @@ export function renderPosts() {
     };
 
     card.querySelectorAll('[data-act="like"]').forEach(b => b.onclick = toggleLike);
-    card.querySelectorAll('[data-act="save"]').forEach(b => b.onclick = () => { post.saved=!post.saved; playSound('click'); renderPosts(); renderProfileGrid(); showToast(post.saved?'Sačuvano':'Uklonjeno'); });
-    card.querySelectorAll('[data-act="share"]').forEach(b => b.onclick = () => { playSound('click'); navigator.clipboard?.writeText(window.location.href); showToast('Link kopiran!'); });
-    card.querySelectorAll('[data-act="cmfocus"]').forEach(b => b.onclick = () => { playSound('click'); card.querySelector('.input-comment')?.focus(); });
+    card.querySelectorAll('[data-act="save"]').forEach(b => b.onclick = () => { post.saved=!post.saved; renderPosts(); renderProfileGrid(); showToast(post.saved?'Sačuvano':'Uklonjeno'); });
+    card.querySelectorAll('[data-act="share"]').forEach(b => b.onclick = () => { navigator.clipboard?.writeText(window.location.href); showToast('Link kopiran!'); });
+    card.querySelectorAll('[data-act="cmfocus"]').forEach(b => b.onclick = () => { card.querySelector('.input-comment')?.focus(); });
 
     const input = card.querySelector('.input-comment');
     const submitBtn = card.querySelector('[data-act="submitcm"]');

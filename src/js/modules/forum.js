@@ -110,7 +110,7 @@ export function renderForumTopics(filterCategory = 'all') {
       btnUpvote.onclick = () => {
         topic.upvoted = !topic.upvoted;
         topic.upvotes += topic.upvoted ? 1 : -1;
-        playSound(topic.upvoted ? 'like' : 'click');
+        if (topic.upvoted) playSound('like');
         renderForumTopics(filterCategory);
       };
     }
@@ -119,7 +119,6 @@ export function renderForumTopics(filterCategory = 'all') {
     const repliesBox = card.querySelector('.forum-replies-box');
     if (btnReplies && repliesBox) {
       btnReplies.onclick = () => {
-        playSound('click');
         repliesBox.classList.toggle('hidden');
       };
     }
@@ -159,7 +158,6 @@ export function renderForumTopics(filterCategory = 'all') {
 function setupForumEvents() {
   document.querySelectorAll('.forum-chip').forEach(chip => {
     chip.onclick = () => {
-      playSound('click');
       document.querySelectorAll('.forum-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       const cat = chip.getAttribute('data-forum-cat');
@@ -170,7 +168,6 @@ function setupForumEvents() {
   const btnNewTopic = document.getElementById('btn-open-new-topic');
   if (btnNewTopic) {
     btnNewTopic.onclick = () => {
-      playSound('click');
       const modal = document.getElementById('new-topic-modal');
       if (modal) modal.classList.remove('hidden');
     };

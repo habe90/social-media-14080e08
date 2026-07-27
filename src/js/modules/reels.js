@@ -52,21 +52,21 @@ export function renderReels() {
     const toggleLike = () => {
       if (state.likedReels.has(reel.id)) { state.likedReels.delete(reel.id); if (reel.likes > 0) reel.likes--; }
       else { state.likedReels.add(reel.id); reel.likes++; }
-      likeReelAPI(reel.id); playSound(state.likedReels.has(reel.id) ? 'like' : 'click'); renderReels();
+      likeReelAPI(reel.id); if (state.likedReels.has(reel.id)) playSound('like'); renderReels();
     };
 
     const videoEl = card.querySelector('video.reel-video');
-    if (videoEl) videoEl.onclick = () => { playSound('click'); videoEl.paused ? videoEl.play().catch(()=>{}) : videoEl.pause(); };
+    if (videoEl) videoEl.onclick = () => { videoEl.paused ? videoEl.play().catch(()=>{}) : videoEl.pause(); };
 
     card.querySelectorAll('[data-action="like"]').forEach(b => b.onclick = toggleLike);
-    card.querySelectorAll('[data-action="mute"]').forEach(b => b.onclick = () => { playSound('click'); if (videoEl) { videoEl.muted = !videoEl.muted; b.innerHTML = videoEl.muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>'; } });
+    card.querySelectorAll('[data-action="mute"]').forEach(b => b.onclick = () => { if (videoEl) { videoEl.muted = !videoEl.muted; b.innerHTML = videoEl.muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>'; } });
     card.querySelectorAll('[data-action="comments"]').forEach(b => b.onclick = async () => {
-      playSound('click'); state.activeReelCommentId = reel.id;
+      state.activeReelCommentId = reel.id;
       const bc = await fetchReelCommentsAPI(reel.id); if (bc) reel.comments = bc;
       renderReelCommentsList(reel);
       document.getElementById('reel-comments-modal')?.classList.remove('hidden');
     });
-    card.querySelectorAll('[data-action="share"]').forEach(b => b.onclick = () => { playSound('click'); navigator.clipboard?.writeText(location.href); showToast('Link kopiran!'); });
+    card.querySelectorAll('[data-action="share"]').forEach(b => b.onclick = () => { navigator.clipboard?.writeText(location.href); showToast('Link kopiran!'); });
 
     container.appendChild(card);
   });
