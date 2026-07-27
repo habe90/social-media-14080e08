@@ -27,11 +27,19 @@ export function renderReels() {
   state.reels.forEach((reel) => {
     const isLiked = state.likedReels.has(reel.id);
     const card = document.createElement('div'); card.className = 'reel-card';
-    const isVideo = reel.video && (reel.video.startsWith('data:video') || reel.video.endsWith('.mp4') || reel.video.includes('mixkit') || reel.video.startsWith('blob:'));
+    
+    const vUrl = reel.video || '';
+    const isVideo = vUrl && (
+      vUrl.startsWith('data:video') || 
+      vUrl.startsWith('blob:') || 
+      vUrl.startsWith('/uploads/') ||
+      /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(vUrl) ||
+      vUrl.includes('mixkit')
+    );
     const safeComments = Array.isArray(reel.comments) ? reel.comments : [];
 
     card.innerHTML = `
-      ${isVideo ? `<video class="reel-video" loop muted playsinline><source src="${reel.video}" type="video/mp4"></video>` : `<img class="reel-video" src="${reel.video}" style="object-fit:cover;width:100%;height:100%;">`}
+      ${isVideo ? `<video class="reel-video" loop muted playsinline preload="metadata"><source src="${vUrl}" type="video/mp4"></video>` : `<img class="reel-video" src="${vUrl}" style="object-fit:cover;width:100%;height:100%;">`}
       <div class="reel-overlay-content"><div class="reel-user-row"><img src="${reel.avatar}"><span class="reel-author">${reel.author}</span><button class="btn-follow-sm">Zaprati</button></div><p class="reel-caption">${reel.caption}</p><div class="reel-audio-track"><i class="fa-solid fa-music"></i> ${reel.audio}</div></div>
       <div class="reel-side-actions">
         <button class="icon-btn btn-reel-like ${isLiked ? 'liked' : ''}" data-action="like"><i class="${isLiked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'}"></i><span class="action-num">${isLiked ? reel.likes + 1 : reel.likes}</span></button>
