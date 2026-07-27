@@ -121,7 +121,7 @@ async function createNotification({ userId, actorId, type, postId = null, reelId
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '4.6' });
+  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '4.7' });
 });
 
 // ========= AUTH ROUTES =========
@@ -272,34 +272,38 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
   try {
     const currentUserId = req.user ? req.user.id : null;
     const { q, tag, page = 1, limit = 24 } = req.query;
-    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 24);
+    const offset = (pageNum - 1) * limitNum;
 
     let whereClausesForPosts = [];
     let whereClausesForCount = [];
     let postsParams = [currentUserId];
     let countParams = [];
 
-    let postsParamIdx = 2;
-    let countParamIdx = 1;
+    let postsParamIdx = 2; // $1 is currentUserId
+    let countParamIdx = 1; // $1 is first count param
 
     if (q) {
-      whereClausesForPosts.push(`(p.caption ILIKE ${postsParamIdx} OR u.nickname ILIKE ${postsParamIdx} OR u.full_name ILIKE ${postsParamIdx} OR p.location ILIKE ${postsParamIdx})`);
-      postsParams.push(`%${q}%`);
+      const qPattern = `%${q}%`;
+      whereClausesForPosts.push(`(p.caption ILIKE $${postsParamIdx} OR u.nickname ILIKE $${postsParamIdx} OR u.full_name ILIKE $${postsParamIdx} OR p.location ILIKE $${postsParamIdx})`);
+      postsParams.push(qPattern);
       postsParamIdx++;
 
-      whereClausesForCount.push(`(p.caption ILIKE ${countParamIdx} OR u.nickname ILIKE ${countParamIdx} OR u.full_name ILIKE ${countParamIdx} OR p.location ILIKE ${countParamIdx})`);
-      countParams.push(`%${q}%`);
+      whereClausesForCount.push(`(p.caption ILIKE $${countParamIdx} OR u.nickname ILIKE $${countParamIdx} OR u.full_name ILIKE $${countParamIdx} OR p.location ILIKE $${countParamIdx})`);
+      countParams.push(qPattern);
       countParamIdx++;
     }
 
     if (tag && tag !== 'all' && tag !== 'sve') {
       const cleanTag = tag.replace(/^#/, '');
-      whereClausesForPosts.push(`(p.caption ILIKE ${postsParamIdx})`);
-      postsParams.push(`%#${cleanTag}%`);
+      const tagPattern = `%#${cleanTag}%`;
+      whereClausesForPosts.push(`(p.caption ILIKE $${postsParamIdx})`);
+      postsParams.push(tagPattern);
       postsParamIdx++;
 
-      whereClausesForCount.push(`(p.caption ILIKE ${countParamIdx})`);
-      countParams.push(`%#${cleanTag}%`);
+      whereClausesForCount.push(`(p.caption ILIKE $${countParamIdx})`);
+      countParams.push(tagPattern);
       countParamIdx++;
     }
 
@@ -308,7 +312,7 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
 
     const limitIdx = postsParamIdx;
     const offsetIdx = postsParamIdx + 1;
-    postsParams.push(parseInt(limit, 10), offset);
+    postsParams.push(limitNum, offset);
 
     const postsQuery = `
       SELECT p.id, p.caption, p.image_url, p.location, p.comments_count, p.created_at,
@@ -319,7 +323,7 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
       JOIN users u ON p.user_id = u.id
       ${whereSqlPosts}
       ORDER BY ((SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) + p.comments_count) DESC, p.created_at DESC
-      LIMIT ${limitIdx} OFFSET ${offsetIdx}
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `;
 
     const postsRes = await pool.query(postsQuery, postsParams);
@@ -349,8 +353,8 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
       posts: postsRes.rows,
       tags: popularTags,
       total,
-      page: parseInt(page, 10),
-      totalPages: Math.ceil(total / parseInt(limit, 10))
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum) || 1
     });
   } catch (err) {
     console.error('GET /api/explore error:', err);
