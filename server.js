@@ -68,8 +68,20 @@ function optionalAuth(req, res, next) {
   next();
 }
 
+async function createNotification({ userId, actorId, type, postId = null, reelId = null, text = null }) {
+  if (!userId || !actorId || userId === actorId) return; // Don't notify oneself
+  try {
+    await pool.query(`
+      INSERT INTO notifications (user_id, actor_id, type, post_id, reel_id, text)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [userId, actorId, type, postId, reelId, text]);
+  } catch (err) {
+    console.error('Create notification error:', err.message);
+  }
+}
+
 app.get('/api/health', (req, res) => {
-  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '4.0' });
+  res.json({ name: 'Selamy Express PostgreSQL API', status: 'ok', version: '4.5' });
 });
 
 // ========= AUTH ROUTES =========
@@ -180,6 +192,39 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Greška pri ažuriranju profila' }); }
 });
 
+// ========= NOTIFICATIONS API =========
+app.get('/api/notifications', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const notifsRes = await pool.query(`
+      SELECT n.id, n.type, n.post_id, n.reel_id, n.text, n.is_read, n.created_at,
+             u.nickname AS actor_nickname, u.full_name AS actor_name, u.avatar AS actor_avatar
+      FROM notifications n
+      JOIN users u ON n.actor_id = u.id
+      WHERE n.user_id = $1
+      ORDER BY n.created_at DESC
+      LIMIT 50
+    `, [userId]);
+
+    const unreadRes = await pool.query(`SELECT COUNT(*)::int AS count FROM notifications WHERE user_id = $1 AND is_read = false`, [userId]);
+    const unread_count = unreadRes.rows[0]?.count || 0;
+
+    res.json({ notifications: notifsRes.rows, unread_count });
+  } catch (err) {
+    console.error('GET /api/notifications error:', err);
+    res.status(500).json({ error: 'Greška pri učitavanju obavještenja' });
+  }
+});
+
+app.post('/api/notifications/read', authenticateToken, async (req, res) => {
+  try {
+    await pool.query(`UPDATE notifications SET is_read = true WHERE user_id = $1`, [req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Greška pri ažuriranju obavještenja' });
+  }
+});
+
 // ========= EXPLORE API =========
 app.get('/api/explore', optionalAuth, async (req, res) => {
   try {
@@ -226,11 +271,11 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
     const countRes = await pool.query(countQuery, countParams);
     const total = countRes.rows[0]?.count || 0;
 
-    // Extract hashtags dynamically
+    // Extract hashtags dynamically from all posts captions
     const allCaptionsRes = await pool.query(`SELECT caption FROM posts WHERE caption ILIKE '%#%'`);
     const tagMap = {};
     allCaptionsRes.rows.forEach(row => {
-      const matches = row.caption.match(/#([a-zA-Z0-9čćžšđČĆŽŠĐ_]+)/g);
+      const matches = row.caption?.match(/#([a-zA-Z0-9čćžšđČĆŽŠĐ_]+)/g);
       if (matches) {
         matches.forEach(m => {
           const clean = m.substring(1).toLowerCase();
@@ -332,8 +377,9 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
 
     if (isNaN(postId)) return res.status(400).json({ error: 'Nevažeći ID objave' });
 
-    const postCheck = await pool.query('SELECT id FROM posts WHERE id = $1', [postId]);
+    const postCheck = await pool.query('SELECT id, user_id FROM posts WHERE id = $1', [postId]);
     if (postCheck.rows.length === 0) return res.status(404).json({ error: 'Objava nije pronađena' });
+    const postOwnerId = postCheck.rows[0].user_id;
 
     const existing = await pool.query('SELECT id FROM likes WHERE post_id = $1 AND user_id = $2', [postId, userId]);
     let liked = false;
@@ -344,6 +390,8 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
     } else {
       await pool.query('INSERT INTO likes (post_id, user_id) VALUES ($1, $2) ON CONFLICT (post_id, user_id) DO NOTHING', [postId, userId]);
       liked = true;
+      // Trigger notification to post owner
+      await createNotification({ userId: postOwnerId, actorId: userId, type: 'post_like', postId });
     }
 
     const countRes = await pool.query('SELECT COUNT(*)::int AS count FROM likes WHERE post_id = $1', [postId]);
@@ -360,12 +408,22 @@ app.post('/api/posts/:id/like', authenticateToken, async (req, res) => {
 
 app.post('/api/posts/:id/comment', authenticateToken, async (req, res) => {
   try {
+    const postId = parseInt(req.params.id, 10);
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Tekst komentara je obavezan' });
     const userId = req.user.id;
-    const insertRes = await pool.query(`INSERT INTO comments (user_id, post_id, text) VALUES ($1,$2,$3) RETURNING id, text, created_at`, [userId, req.params.id, text]);
-    await pool.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = $1', [req.params.id]);
+
+    const postCheck = await pool.query('SELECT id, user_id FROM posts WHERE id = $1', [postId]);
+    if (postCheck.rows.length === 0) return res.status(404).json({ error: 'Objava nije pronađena' });
+    const postOwnerId = postCheck.rows[0].user_id;
+
+    const insertRes = await pool.query(`INSERT INTO comments (user_id, post_id, text) VALUES ($1,$2,$3) RETURNING id, text, created_at`, [userId, postId, text]);
+    await pool.query('UPDATE posts SET comments_count = comments_count + 1 WHERE id = $1', [postId]);
     const u = (await pool.query('SELECT nickname FROM users WHERE id=$1', [userId])).rows[0];
+
+    // Trigger notification to post owner
+    await createNotification({ userId: postOwnerId, actorId: userId, type: 'post_comment', postId, text });
+
     res.json({ success: true, comment: { ...insertRes.rows[0], user: u.nickname } });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Greška pri čuvanju komentara' }); }
 });
@@ -391,10 +449,18 @@ app.post('/api/stories', authenticateToken, async (req, res) => {
 
 app.post('/api/stories/:id/comment', authenticateToken, async (req, res) => {
   try {
+    const storyId = parseInt(req.params.id, 10);
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Tekst odgovora je obavezan' });
     const userId = req.user.id;
-    await pool.query(`INSERT INTO story_comments (user_id, story_id, text) VALUES ($1,$2,$3)`, [userId, req.params.id, text]);
+
+    const storyCheck = await pool.query('SELECT id, user_id FROM stories WHERE id = $1', [storyId]);
+    if (storyCheck.rows[0]) {
+      const storyOwnerId = storyCheck.rows[0].user_id;
+      await createNotification({ userId: storyOwnerId, actorId: userId, type: 'story_reply', text });
+    }
+
+    await pool.query(`INSERT INTO story_comments (user_id, story_id, text) VALUES ($1,$2,$3)`, [userId, storyId, text]);
     res.json({ success: true, message: 'Odgovor na priču poslan!' });
   } catch (err) { res.status(500).json({ error: 'Greška pri slanju odgovora' }); }
 });
@@ -420,19 +486,36 @@ app.post('/api/reels', authenticateToken, async (req, res) => {
 
 app.post('/api/reels/:id/like', authenticateToken, async (req, res) => {
   try {
-    await pool.query('UPDATE reels SET likes_count = likes_count + 1 WHERE id = $1', [req.params.id]);
-    const r = await pool.query('SELECT likes_count FROM reels WHERE id = $1', [req.params.id]);
+    const reelId = parseInt(req.params.id, 10);
+    const userId = req.user.id;
+
+    const reelCheck = await pool.query('SELECT id, user_id FROM reels WHERE id = $1', [reelId]);
+    if (reelCheck.rows[0]) {
+      const reelOwnerId = reelCheck.rows[0].user_id;
+      await createNotification({ userId: reelOwnerId, actorId: userId, type: 'reel_like', reelId });
+    }
+
+    await pool.query('UPDATE reels SET likes_count = likes_count + 1 WHERE id = $1', [reelId]);
+    const r = await pool.query('SELECT likes_count FROM reels WHERE id = $1', [reelId]);
     res.json({ success: true, likes_count: r.rows[0]?.likes_count || 0 });
   } catch (err) { res.status(500).json({ error: 'Greška pri lajkovanju' }); }
 });
 
 app.post('/api/reels/:id/comment', authenticateToken, async (req, res) => {
   try {
+    const reelId = parseInt(req.params.id, 10);
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Tekst komentara je obavezan' });
     const userId = req.user.id;
-    const insertRes = await pool.query(`INSERT INTO reel_comments (user_id, reel_id, text) VALUES ($1,$2,$3) RETURNING id, text, created_at`, [userId, req.params.id, text]);
-    await pool.query('UPDATE reels SET comments_count = comments_count + 1 WHERE id = $1', [req.params.id]);
+
+    const reelCheck = await pool.query('SELECT id, user_id FROM reels WHERE id = $1', [reelId]);
+    if (reelCheck.rows[0]) {
+      const reelOwnerId = reelCheck.rows[0].user_id;
+      await createNotification({ userId: reelOwnerId, actorId: userId, type: 'reel_comment', reelId, text });
+    }
+
+    const insertRes = await pool.query(`INSERT INTO reel_comments (user_id, reel_id, text) VALUES ($1,$2,$3) RETURNING id, text, created_at`, [userId, reelId, text]);
+    await pool.query('UPDATE reels SET comments_count = comments_count + 1 WHERE id = $1', [reelId]);
     const u = (await pool.query('SELECT nickname FROM users WHERE id=$1', [userId])).rows[0];
     res.json({ success: true, comment: { ...insertRes.rows[0], user: u.nickname } });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Greška pri čuvanju komentara' }); }
