@@ -9,6 +9,7 @@ import { initChallengesModule } from './src/js/modules/challenges.js';
 import { initStoriesModule, renderStories } from './src/js/modules/stories.js';
 import { initReelsModule, renderReels } from './src/js/modules/reels.js';
 import { initFeedModule, renderPosts } from './src/js/modules/feed.js';
+import { initExploreModule, loadExploreData } from './src/js/modules/explore.js';
 import { initChatModule } from './src/js/modules/chat.js';
 import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.js';
 import { registerUser, loginUser, logoutUser, fetchCurrentUser, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
@@ -48,9 +49,9 @@ async function initApp() {
   await initStoriesModule();
   await initFeedModule();
   await initReelsModule();
+  await initExploreModule();
   initChatModule();
   initProfileModule();
-  renderExploreGrid();
   setupEventListeners();
   setupFileUploadListeners();
   setupPasswordToggleListeners();
@@ -247,6 +248,7 @@ function setupEventListeners() {
       await initStoriesModule();
       await initReelsModule();
       await initForumModule();
+      await initExploreModule();
       renderProfileGrid();
       switchTab('home');
     } else {
@@ -274,6 +276,7 @@ function setupEventListeners() {
       await initStoriesModule();
       await initReelsModule();
       await initForumModule();
+      await initExploreModule();
       renderProfileGrid();
       switchTab('home');
     } else {
@@ -282,9 +285,21 @@ function setupEventListeners() {
   });
 }
 
-function switchTab(tab) { state.activeTab=tab; document.querySelectorAll('.nav-item').forEach(i=>i.classList.toggle('active',i.getAttribute('data-tab')===tab)); document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active',p.id===`tab-${tab}`)); if(tab==='reels'){const v=document.querySelector('video.reel-video');if(v)v.play().catch(()=>{});}else{document.querySelectorAll('video.reel-video').forEach(v=>v.pause());} window.scrollTo({top:0,behavior:'smooth'}); }
-
-function renderExploreGrid(q='') { const g=document.getElementById('explore-grid'); if(!g)return; const imgs=[{s:'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&q=80',t:'putovanja'},{s:'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=500&q=80',t:'fotografije'},{s:'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&q=80',t:'tehnologija'},{s:'https://images.unsplash.com/photo-1563720223185-11003d516935?w=500&q=80',t:'putovanja'},{s:'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=500&q=80',t:'moda'},{s:'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500&q=80',t:'fotografije'}]; const f=q?imgs.filter(i=>i.t.includes(q)):imgs; g.innerHTML=''; f.forEach(i=>{const c=document.createElement('div');c.className='explore-item';c.innerHTML=`<img src="${i.s}" alt=""><div class="explore-overlay"><span><i class="fa-solid fa-heart"></i> ${Math.floor(Math.random()*400)+100}</span><span><i class="fa-solid fa-comment"></i> ${Math.floor(Math.random()*50)+5}</span></div>`;g.appendChild(c);}); }
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.getAttribute('data-tab') === tab));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+  if (tab === 'reels') {
+    const v = document.querySelector('video.reel-video');
+    if (v) v.play().catch(() => {});
+  } else {
+    document.querySelectorAll('video.reel-video').forEach(v => v.pause());
+  }
+  if (tab === 'search') {
+    loadExploreData();
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 async function handleCreatePost() {
   if (!state.currentUser.loggedIn) {
@@ -303,7 +318,7 @@ async function handleCreatePost() {
       verified: true, location: l, image: u, caption: c || 'Nova objava! ✨',
       likes: 0, likedByMe: false, saved: false, timeAgo: 'UPRAVO SADA', comments: []
     });
-    renderPosts(); renderProfileGrid(); resetUploadState('post'); closeAllModals();
+    renderPosts(); renderProfileGrid(); loadExploreData(); resetUploadState('post'); closeAllModals();
     document.getElementById('post-caption').value = ''; document.getElementById('post-location').value = '';
     showToast('Objava sačuvana u bazi!'); switchTab('home');
   } else {
