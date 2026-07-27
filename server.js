@@ -7,7 +7,6 @@ import jwt from 'jsonwebtoken';
 import path from 'path';
 import fs from 'fs';
 import pool, { initDB } from './src/db/index.js';
-import { getTodaysAyahRef } from './src/data/ayahPool.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -275,44 +274,58 @@ app.get('/api/explore', optionalAuth, async (req, res) => {
     const { q, tag, page = 1, limit = 24 } = req.query;
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
-    let whereClauses = [];
-    let filterParams = [];
+    let whereClausesForPosts = [];
+    let whereClausesForCount = [];
+    let postsParams = [currentUserId];
+    let countParams = [];
+
+    let postsParamIdx = 2;
+    let countParamIdx = 1;
 
     if (q) {
-      filterParams.push(`%${q}%`);
-      const idx = filterParams.length;
-      whereClauses.push(`(p.caption ILIKE $${idx} OR u.nickname ILIKE $${idx} OR u.full_name ILIKE $${idx} OR p.location ILIKE $${idx})`);
+      whereClausesForPosts.push(`(p.caption ILIKE ${postsParamIdx} OR u.nickname ILIKE ${postsParamIdx} OR u.full_name ILIKE ${postsParamIdx} OR p.location ILIKE ${postsParamIdx})`);
+      postsParams.push(`%${q}%`);
+      postsParamIdx++;
+
+      whereClausesForCount.push(`(p.caption ILIKE ${countParamIdx} OR u.nickname ILIKE ${countParamIdx} OR u.full_name ILIKE ${countParamIdx} OR p.location ILIKE ${countParamIdx})`);
+      countParams.push(`%${q}%`);
+      countParamIdx++;
     }
 
     if (tag && tag !== 'all' && tag !== 'sve') {
       const cleanTag = tag.replace(/^#/, '');
-      filterParams.push(`%#${cleanTag}%`);
-      whereClauses.push(`(p.caption ILIKE $${filterParams.length})`);
+      whereClausesForPosts.push(`(p.caption ILIKE ${postsParamIdx})`);
+      postsParams.push(`%#${cleanTag}%`);
+      postsParamIdx++;
+
+      whereClausesForCount.push(`(p.caption ILIKE ${countParamIdx})`);
+      countParams.push(`%#${cleanTag}%`);
+      countParamIdx++;
     }
 
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSqlPosts = whereClausesForPosts.length > 0 ? `WHERE ${whereClausesForPosts.join(' AND ')}` : '';
+    const whereSqlCount = whereClausesForCount.length > 0 ? `WHERE ${whereClausesForCount.join(' AND ')}` : '';
 
-    const userIdParamNum = filterParams.length + 1;
-    const limitParamNum = filterParams.length + 2;
-    const offsetParamNum = filterParams.length + 3;
+    const limitIdx = postsParamIdx;
+    const offsetIdx = postsParamIdx + 1;
+    postsParams.push(parseInt(limit, 10), offset);
 
     const postsQuery = `
       SELECT p.id, p.caption, p.image_url, p.location, p.comments_count, p.created_at,
              u.nickname AS author, u.full_name, u.avatar,
              (SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) AS likes_count,
-             CASE WHEN $${userIdParamNum}::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $${userIdParamNum}::int) ELSE false END AS liked_by_me
+             CASE WHEN $1::int IS NOT NULL THEN EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $1::int) ELSE false END AS liked_by_me
       FROM posts p
       JOIN users u ON p.user_id = u.id
-      ${whereSql}
+      ${whereSqlPosts}
       ORDER BY ((SELECT COUNT(*)::int FROM likes WHERE post_id = p.id) + p.comments_count) DESC, p.created_at DESC
-      LIMIT $${limitParamNum} OFFSET $${offsetParamNum}
+      LIMIT ${limitIdx} OFFSET ${offsetIdx}
     `;
-    const postsParams = [...filterParams, currentUserId, parseInt(limit, 10), offset];
 
     const postsRes = await pool.query(postsQuery, postsParams);
 
-    const countQuery = `SELECT COUNT(*)::int FROM posts p JOIN users u ON p.user_id = u.id ${whereSql}`;
-    const countRes = await pool.query(countQuery, filterParams);
+    const countQuery = `SELECT COUNT(*)::int AS count FROM posts p JOIN users u ON p.user_id = u.id ${whereSqlCount}`;
+    const countRes = await pool.query(countQuery, countParams);
     const total = countRes.rows[0]?.count || 0;
 
     const allCaptionsRes = await pool.query(`SELECT caption FROM posts WHERE caption ILIKE '%#%'`);
@@ -597,143 +610,6 @@ app.post('/api/forum/topics', authenticateToken, async (req, res) => {
     const u = (await pool.query('SELECT nickname, avatar FROM users WHERE id=$1', [userId])).rows[0];
     res.json({ success: true, topic: { ...insertRes.rows[0], author: u.nickname, authorAvatar: u.avatar } });
   } catch (err) { res.status(500).json({ error: 'Greška pri otvaranju teme' }); }
-});
-
-// ========= AJET DANA (quran.com API, keširan po danu) =========
-const FALLBACK_AYAH = {
-  type: 'Ajet dana',
-  source: 'Sura El-Bekare, 153',
-  text: '„O vjernici, tražite sebi pomoći u strpljivosti i obavljanju molitve! Allah je doista na strani strpljivih.”',
-  arabic: 'يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ'
-};
-
-function getTodayDateStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-app.get('/api/ajet-dana', async (req, res) => {
-  const today = getTodayDateStr();
-  try {
-    const cached = await pool.query('SELECT surah, ayah, surah_name, arabic_text, translation_text FROM daily_ayah_cache WHERE ayah_date = $1', [today]);
-    if (cached.rows[0]) {
-      const c = cached.rows[0];
-      return res.json({ type: 'Ajet dana', source: `Sura ${c.surah_name}, ${c.ayah}`, text: c.translation_text, arabic: c.arabic_text });
-    }
-
-    const ref = getTodaysAyahRef();
-    const apiRes = await fetch(`https://api.quran.com/api/v4/verses/by_key/${ref.surah}:${ref.ayah}?translations=126&fields=text_uthmani`);
-    if (!apiRes.ok) throw new Error(`Quran API status ${apiRes.status}`);
-    const data = await apiRes.json();
-    const verse = data.verse;
-    const arabicText = verse.text_uthmani;
-    const translationText = (verse.translations?.[0]?.text || '').replace(/<[^>]+>/g, '').trim();
-
-    try {
-      await pool.query(
-        `INSERT INTO daily_ayah_cache (ayah_date, surah, ayah, surah_name, arabic_text, translation_text) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (ayah_date) DO NOTHING`,
-        [today, ref.surah, ref.ayah, ref.surahName, arabicText, translationText]
-      );
-    } catch (cacheErr) { console.error('Ayah cache write error:', cacheErr.message); }
-
-    res.json({ type: 'Ajet dana', source: `Sura ${ref.surahName}, ${ref.ayah}`, text: translationText, arabic: arabicText });
-  } catch (err) {
-    console.error('GET /api/ajet-dana error:', err.message);
-    res.json(FALLBACK_AYAH);
-  }
-});
-
-// ========= DNEVNI IZAZOVI DOBRIH DJELA =========
-const CHALLENGES_PER_DAY = 4;
-
-function getDayOfYear(date = new Date()) {
-  const start = new Date(date.getFullYear(), 0, 0);
-  return Math.floor((date - start) / (1000 * 60 * 60 * 24));
-}
-
-async function getTodaysChallengeTemplates() {
-  const all = await pool.query('SELECT id, title, category FROM challenge_templates ORDER BY sort_order ASC');
-  const rows = all.rows;
-  if (rows.length === 0) return [];
-  const startIdx = (getDayOfYear() * CHALLENGES_PER_DAY) % rows.length;
-  const todays = [];
-  for (let i = 0; i < Math.min(CHALLENGES_PER_DAY, rows.length); i++) {
-    todays.push(rows[(startIdx + i) % rows.length]);
-  }
-  return todays;
-}
-
-async function computeChallengeStats(userId) {
-  if (!userId) return { totalCompletedAllTime: 0, streakDays: 0 };
-  const totalRes = await pool.query('SELECT COUNT(*)::int AS count FROM user_challenge_completions WHERE user_id = $1', [userId]);
-  const datesRes = await pool.query(
-    `SELECT DISTINCT completed_date FROM user_challenge_completions WHERE user_id = $1 ORDER BY completed_date DESC`,
-    [userId]
-  );
-  let streakDays = 0;
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-  for (const row of datesRes.rows) {
-    const d = new Date(row.completed_date);
-    d.setHours(0, 0, 0, 0);
-    const diffDays = Math.round((cursor - d) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) { streakDays++; cursor.setDate(cursor.getDate() - 1); }
-    else if (diffDays === 1 && streakDays === 0) { continue; }
-    else break;
-  }
-  return { totalCompletedAllTime: totalRes.rows[0].count, streakDays };
-}
-
-app.get('/api/daily-challenges', optionalAuth, async (req, res) => {
-  try {
-    const today = getTodayDateStr();
-    const templates = await getTodaysChallengeTemplates();
-    let completedIds = new Set();
-    if (req.user && templates.length > 0) {
-      const ids = templates.map(t => t.id);
-      const completedRes = await pool.query(
-        `SELECT challenge_template_id FROM user_challenge_completions WHERE user_id = $1 AND completed_date = $2 AND challenge_template_id = ANY($3::int[])`,
-        [req.user.id, today, ids]
-      );
-      completedIds = new Set(completedRes.rows.map(r => r.challenge_template_id));
-    }
-    const challenges = templates.map(t => ({ id: t.id, title: t.title, category: t.category, completed: completedIds.has(t.id) }));
-    const stats = await computeChallengeStats(req.user?.id);
-    res.json({ challenges, stats });
-  } catch (err) {
-    console.error('GET /api/daily-challenges error:', err.message);
-    res.status(500).json({ error: 'Greška pri učitavanju dnevnih izazova' });
-  }
-});
-
-app.post('/api/daily-challenges/:id/toggle', authenticateToken, async (req, res) => {
-  try {
-    const templateId = parseInt(req.params.id, 10);
-    const today = getTodayDateStr();
-    const userId = req.user.id;
-
-    const existing = await pool.query(
-      'SELECT id FROM user_challenge_completions WHERE user_id = $1 AND challenge_template_id = $2 AND completed_date = $3',
-      [userId, templateId, today]
-    );
-
-    let completed;
-    if (existing.rows[0]) {
-      await pool.query('DELETE FROM user_challenge_completions WHERE id = $1', [existing.rows[0].id]);
-      completed = false;
-    } else {
-      await pool.query(
-        'INSERT INTO user_challenge_completions (user_id, challenge_template_id, completed_date) VALUES ($1,$2,$3)',
-        [userId, templateId, today]
-      );
-      completed = true;
-    }
-
-    const stats = await computeChallengeStats(userId);
-    res.json({ success: true, completed, stats });
-  } catch (err) {
-    console.error('POST /api/daily-challenges/:id/toggle error:', err.message);
-    res.status(500).json({ error: 'Greška pri ažuriranju izazova' });
-  }
 });
 
 // Serving Static Frontend
