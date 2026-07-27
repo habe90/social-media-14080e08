@@ -48,7 +48,7 @@ export async function loadExploreData(append = false) {
       gridEl.innerHTML = `
         <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
           <i class="fa-solid fa-circle-exclamation" style="font-size: 32px; color: #ef4444; margin-bottom: 10px;"></i>
-          <p>Greška pri učitavanju objava.</p>
+          <p>Greška pri učitavanju objava z baze.</p>
         </div>`;
     }
   }
@@ -58,8 +58,8 @@ function renderSearchTags(popularTags = []) {
   const container = document.getElementById('search-tags');
   if (!container) return;
 
-  const defaultTags = ['fotografije', 'putovanja', 'moda', 'tehnologija', 'kalesija', 'sarajevo'];
-  const mergedTags = Array.from(new Set([...popularTags, ...defaultTags])).slice(0, 8);
+  const defaultTags = ['fotografije', 'putovanja', 'kalesija', 'sarajevo', 'priroda', 'znanje'];
+  const mergedTags = Array.from(new Set([...popularTags, ...defaultTags])).slice(0, 10);
 
   container.innerHTML = '';
 
@@ -75,7 +75,7 @@ function renderSearchTags(popularTags = []) {
   };
   container.appendChild(sveBtn);
 
-  // Dynamic tags
+  // Dynamic tag chips
   mergedTags.forEach(t => {
     const cleanTag = t.toLowerCase().replace(/^#/, '');
     const tagBtn = document.createElement('button');
@@ -127,7 +127,7 @@ function renderExploreGrid(posts = []) {
     gridEl.appendChild(item);
   });
 
-  // Load More button
+  // Pagination / Load More button
   if (currentPage < totalPages) {
     const loadMoreContainer = document.createElement('div');
     loadMoreContainer.style.gridColumn = '1 / -1';
