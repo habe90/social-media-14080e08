@@ -10,6 +10,7 @@ import { initStoriesModule, renderStories } from './src/js/modules/stories.js';
 import { initReelsModule, renderReels } from './src/js/modules/reels.js';
 import { initFeedModule, renderPosts } from './src/js/modules/feed.js';
 import { initExploreModule, loadExploreData } from './src/js/modules/explore.js';
+import { initNotificationsModule, loadAndRenderNotifications } from './src/js/modules/notifications.js';
 import { initChatModule } from './src/js/modules/chat.js';
 import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.js';
 import { registerUser, loginUser, logoutUser, fetchCurrentUser, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
@@ -50,6 +51,7 @@ async function initApp() {
   await initFeedModule();
   await initReelsModule();
   await initExploreModule();
+  await initNotificationsModule();
   initChatModule();
   initProfileModule();
   setupEventListeners();
@@ -184,7 +186,7 @@ function setupEventListeners() {
   document.getElementById('btn-mobile-create')?.addEventListener('click', checkAuthAndOpenCreate);
 
   const tp=document.getElementById('tab-create-post'),ts=document.getElementById('tab-create-story'),tr=document.getElementById('tab-create-reel'),fp=document.getElementById('create-post-form'),fs=document.getElementById('create-story-form'),fr=document.getElementById('create-reel-form');
-  if(tp&&ts&&tr){tp.onclick=()=>{playSound('click');tp.classList.add('active');ts.classList.remove('active');tr.classList.remove('active');fp.classList.remove('hidden');fs.classList.add('hidden');fr.classList.add('hidden');};ts.onclick=()=>{playSound('click');ts.classList.add('active');tp.classList.remove('active');tr.classList.remove('active');fs.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};tr.onclick=()=>{playSound('click');tr.classList.add('active');tp.classList.remove('active');ts.classList.remove('active');fr.classList.remove('hidden');fp.classList.add('hidden');fs.classList.add('hidden');};}
+  if(tp&&ts&&tr){tp.onclick=()=>{playSound('click');tp.classList.add('active');ts.classList.remove('active');tr.classList.remove('active');fp.classList.remove('hidden');fs.classList.add('hidden');fr.classList.add('hidden');};ts.onclick=()=>{playSound('click');ts.classList.add('active');tp.classList.remove('active');tr.classList.remove('active');fs.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};tr.onclick=()=>{playSound('click');tr.classList.add('active');tp.classList.remove('active');ts.classList.remove('active');fr.classList.remove('hidden');fp.classList.add('hidden');fr.classList.add('hidden');};}
 
   document.getElementById('btn-submit-post')?.addEventListener('click', handleCreatePost);
   document.getElementById('btn-submit-story')?.addEventListener('click', handleCreateStory);
@@ -249,6 +251,7 @@ function setupEventListeners() {
       await initReelsModule();
       await initForumModule();
       await initExploreModule();
+      await initNotificationsModule();
       renderProfileGrid();
       switchTab('home');
     } else {
@@ -277,6 +280,7 @@ function setupEventListeners() {
       await initReelsModule();
       await initForumModule();
       await initExploreModule();
+      await initNotificationsModule();
       renderProfileGrid();
       switchTab('home');
     } else {
@@ -297,6 +301,9 @@ function switchTab(tab) {
   }
   if (tab === 'search') {
     loadExploreData();
+  }
+  if (tab === 'notifications') {
+    loadAndRenderNotifications();
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
