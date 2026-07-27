@@ -124,14 +124,25 @@ function setupFileUploadListeners() {
   async function handleReelFile(f) {
     const isV = f.type.startsWith('video/'), isI = f.type.startsWith('image/');
     if (!isV&&!isI) { showToast('Odaberite video ili sliku.'); return; }
-    const mb = (f.size/(1024*1024)).toFixed(1);
+    const mb = f.size / (1024 * 1024);
     if (isV) {
-      const blobUrl = URL.createObjectURL(f);
-      state.uploadedMedia.reel = { type: 'video', url: blobUrl, isLocalVideo: true };
-      if (rpv) { rpv.src = blobUrl; rpv.classList.remove('hidden'); }
-      if (rpi) rpi.classList.add('hidden');
-      if (roi) roi.innerHTML = `<i class="fa-solid fa-film"></i> <span>Video: <strong>${mb} MB</strong> (lokalni blob)</span>`;
-      playSound('pop'); showToast(`Video spreman (${mb} MB)!`);
+      if (mb > 25) { showToast('Video je prevelik (max 25MB).'); return; }
+      showToast('⚡ Pripremam video...');
+      try {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(f);
+        });
+        state.uploadedMedia.reel = { type: 'video', url: dataUrl };
+        if (rpv) { rpv.src = dataUrl; rpv.classList.remove('hidden'); }
+        if (rpi) rpi.classList.add('hidden');
+        if (roi) roi.innerHTML = `<i class="fa-solid fa-film"></i> <span>Video spreman: <strong>${mb.toFixed(1)} MB</strong></span>`;
+        playSound('pop'); showToast(`Video spreman (${mb.toFixed(1)} MB)!`);
+      } catch (e) {
+        showToast('Greška pri učitavanju videa.');
+      }
     } else {
       showToast('⚡ Sažimam sliku...');
       const c = await compressImageFile(f,1080,0.78);
@@ -333,13 +344,13 @@ async function handleCreateReel() {
   if (!state.uploadedMedia.reel?.url) { showToast('Izaberite video ili sliku.'); return; }
   playSound('post');
   const u = state.uploadedMedia.reel.url, c = document.getElementById('reel-caption-input').value.trim() || 'Novi kratki video! ✨', a = document.getElementById('reel-audio-input').value.trim() || `Zvuk - ${state.currentUser.username}`;
-  showToast('Spremam Reel...');
+  showToast('Spremam Reel u bazu...');
   const br = await createReelAPI({ video_url: u, caption: c, audio_title: a });
   if (br) {
     state.reels.unshift({ id: br.id, author: state.currentUser.username, avatar: state.currentUser.avatar, caption: c, video: u, audio: a, likes: 0, comments: [] });
     renderReels(); resetUploadState('reel'); closeAllModals();
     document.getElementById('reel-caption-input').value = ''; document.getElementById('reel-audio-input').value = '';
-    showToast('Reel sačuvan u bazi!'); switchTab('reels');
+    showToast('Reel trajno sačuvan u bazi!'); switchTab('reels');
   } else {
     showToast('Niste prijavljeni ili je došlo do greške.');
   }
