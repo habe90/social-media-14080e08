@@ -89,19 +89,38 @@ export async function initDB() {
       );
     `);
 
-    console.log('✅ PostgreSQL migracije uspešno izvršene (uključujući likes tabelu)');
+    console.log('✅ PostgreSQL migracije uspešno izvršene');
 
-    const userRes = await activePool.query('SELECT * FROM users WHERE nickname = $1', ['halil_official']);
+    // Clean up invalid blob: URLs from previous reels if any exist
+    await activePool.query(`DELETE FROM reels WHERE video_url LIKE 'blob:%'`);
+
+    let userId;
+    const userRes = await activePool.query('SELECT id FROM users WHERE nickname = $1', ['halil_official']);
     if (userRes.rows.length === 0) {
       const salt = bcrypt.genSaltSync(10);
       const hash = bcrypt.hashSync('selamy123', salt);
-      await activePool.query(`INSERT INTO users (full_name, nickname, email, phone, password_hash, avatar, bio, location) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [
+      const ins = await activePool.query(`INSERT INTO users (full_name, nickname, email, phone, password_hash, avatar, bio, location) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [
         'Halil Hodžić', 'halil_official', 'halil@selamy.ba', '+38761123456', hash,
         'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
         'Digitalni kreator & ljubitelj fotografije 📷 | Kalesija, BiH 🇧🇦 | Život u plavim tonovima 💙', 'Kalesija (Babajići)'
       ]);
+      userId = ins.rows[0].id;
       console.log('✅ Defaultni nalog halil_official kreiran');
+    } else {
+      userId = userRes.rows[0].id;
     }
+
+    // Seed sample reels if reels table is empty
+    const reelsRes = await activePool.query('SELECT COUNT(*)::int AS count FROM reels');
+    if (reelsRes.rows[0].count === 0) {
+      await activePool.query(`
+        INSERT INTO reels (user_id, video_url, caption, audio_title, likes_count, comments_count) VALUES
+        ($1, 'https://assets.mixkit.co/videos/preview/mixkit-nature-landscape-with-mountains-and-a-lake-41235-large.mp4', 'Lijepi prizori prirode u BiH 🌄 #priroda #selamy', 'Zvuk prirode - Halil Hodžić', 12, 3),
+        ($1, 'https://assets.mixkit.co/videos/preview/mixkit-a-far-view-of-a-mosque-in-a-city-43152-large.mp4', 'Mir i tišina pred namaz 🕌✨', 'Duševni mir - Selamy Network', 24, 7)
+      `, [userId]);
+      console.log('✅ Inicijalni Reel video zapisi sačuvani u PostgreSQL bazi');
+    }
+
   } catch (err) {
     console.error('⚠️ PostgreSQL greška:', err.message);
   }
