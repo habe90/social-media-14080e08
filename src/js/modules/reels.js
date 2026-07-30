@@ -1,4 +1,4 @@
-// SELAMY - REELS VIDEO ZAPISI (POSTGRESQL SYNC + AUTOPLAY ON SCROLL)
+// SELAMY - REELS VIDEO ZAPISI (POSTGRESQL SYNC + AUTOPLAY ON SCROLL & RECOMMENDATION ALGORITHM)
 
 import { state } from '../state.js';
 import { showToast } from '../utils/compressor.js';
@@ -6,6 +6,7 @@ import { playSound } from '../utils/sound.js';
 import { fetchReelsAPI, likeReelAPI, commentReelAPI, fetchReelCommentsAPI } from '../services/api.js';
 
 let reelsObserver = null;
+let isMutedGlobal = false;
 
 export async function initReelsModule() {
   await loadReelsFromBackend();
@@ -22,7 +23,7 @@ export async function loadReelsFromBackend() {
       caption: r.caption || '',
       video: r.video_url || r.video,
       audio: r.audio_title || r.audio || 'Selamy Original Audio',
-      likes: r.likes_count || 0,
+      likes: r.likes_count || r.likes || 0,
       comments: r.comments || []
     }));
   }
@@ -35,19 +36,30 @@ export function playCurrentVisibleReel() {
   if (!cards.length) return;
 
   const containerRect = container.getBoundingClientRect();
-  let foundTarget = false;
+  let mostVisibleCard = null;
+  let maxVisibleHeight = 0;
 
   cards.forEach(card => {
     const rect = card.getBoundingClientRect();
+    const visibleHeight = Math.max(0, Math.min(rect.bottom, containerRect.bottom) - Math.max(rect.top, containerRect.top));
+    if (visibleHeight > maxVisibleHeight) {
+      maxVisibleHeight = visibleHeight;
+      mostVisibleCard = card;
+    }
+  });
+
+  cards.forEach(card => {
     const videoEl = card.querySelector('video.reel-video');
     if (!videoEl) return;
 
-    const visibleHeight = Math.max(0, Math.min(rect.bottom, containerRect.bottom) - Math.max(rect.top, containerRect.top));
-    const isMainlyVisible = visibleHeight >= rect.height * 0.5;
-
-    if (isMainlyVisible && !foundTarget) {
-      foundTarget = true;
-      videoEl.play().catch(() => {});
+    if (card === mostVisibleCard && maxVisibleHeight > containerRect.height * 0.4) {
+      videoEl.muted = isMutedGlobal;
+      videoEl.play().catch(() => {
+        // Fallback na muted play ako pregledač blokira unmuted play
+        videoEl.muted = true;
+        isMutedGlobal = true;
+        videoEl.play().catch(() => {});
+      });
     } else {
       videoEl.pause();
     }
@@ -86,7 +98,10 @@ export function renderReels() {
     const safeComments = Array.isArray(reel.comments) ? reel.comments : [];
 
     card.innerHTML = `
-      ${isVideo ? `<video class="reel-video" loop muted playsinline preload="metadata"><source src="${vUrl}" type="video/mp4"></video>` : `<img class="reel-video" src="${vUrl}" style="object-fit:cover;width:100%;height:100%;">`}
+      ${isVideo 
+        ? `<video class="reel-video" loop ${isMutedGlobal ? 'muted' : ''} playsinline preload="auto"><source src="${vUrl}" type="video/mp4"></video>` 
+        : `<img class="reel-video" src="${vUrl}" style="object-fit:cover;width:100%;height:100%;">`
+      }
       <div class="reel-overlay-content">
         <div class="reel-user-row">
           <img src="${reel.avatar}">
@@ -108,7 +123,11 @@ export function renderReels() {
         <button class="icon-btn" data-action="share">
           <i class="fa-regular fa-paper-plane"></i>
         </button>
-        ${isVideo ? `<button class="icon-btn" data-action="mute" title="Uključi/isključi zvuk"><i class="fa-solid fa-volume-xmark"></i></button>` : ''}
+        ${isVideo ? `
+          <button class="icon-btn btn-reel-mute" data-action="mute" title="Zvuk Uključen/Isključen">
+            <i class="fa-solid ${isMutedGlobal ? 'fa-volume-xmark' : 'fa-volume-high'}"></i>
+          </button>
+        ` : ''}
       </div>
     `;
 
@@ -138,13 +157,25 @@ export function renderReels() {
     }
 
     card.querySelectorAll('[data-action="like"]').forEach(b => b.onclick = toggleLike);
-    card.querySelectorAll('[data-action="mute"]').forEach(b => b.onclick = () => {
+    
+    card.querySelectorAll('[data-action="mute"]').forEach(b => b.onclick = (e) => {
+      e.stopPropagation();
       playSound('click');
-      if (videoEl) {
-        videoEl.muted = !videoEl.muted;
-        b.innerHTML = videoEl.muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
-      }
+      isMutedGlobal = !isMutedGlobal;
+
+      // Primijeni na sve vidoje u feedu
+      container.querySelectorAll('video.reel-video').forEach(v => {
+        v.muted = isMutedGlobal;
+      });
+
+      // Ažuriraj ikonice na svim gumbima
+      container.querySelectorAll('.btn-reel-mute i').forEach(icon => {
+        icon.className = `fa-solid ${isMutedGlobal ? 'fa-volume-xmark' : 'fa-volume-high'}`;
+      });
+
+      showToast(isMutedGlobal ? 'Zvuk isključen 🔇' : 'Zvuk uključen 🔊');
     });
+
     card.querySelectorAll('[data-action="comments"]').forEach(b => b.onclick = async () => {
       playSound('click');
       state.activeReelCommentId = reel.id;
@@ -153,6 +184,7 @@ export function renderReels() {
       renderReelCommentsList(reel);
       document.getElementById('reel-comments-modal')?.classList.remove('hidden');
     });
+
     card.querySelectorAll('[data-action="share"]').forEach(b => b.onclick = () => {
       playSound('click');
       navigator.clipboard?.writeText(location.href);
@@ -162,18 +194,24 @@ export function renderReels() {
     container.appendChild(card);
   });
 
-  // IntersectionObserver za prebacivanje i autoplay pri skrolovanju
+  // IntersectionObserver za instant Autoplay pri šaltanju
   reelsObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      const videoEl = entry.target.querySelector('video.reel-video');
+      const card = entry.target;
+      const videoEl = card.querySelector('video.reel-video');
       if (!videoEl) return;
 
       if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+        // Pauziraj sve ostale video zapise
         container.querySelectorAll('video.reel-video').forEach(v => {
           if (v !== videoEl) v.pause();
         });
-        videoEl.play().catch(err => {
-          console.log('Autoplay prevented by browser:', err);
+
+        videoEl.muted = isMutedGlobal;
+        videoEl.play().catch(() => {
+          videoEl.muted = true;
+          isMutedGlobal = true;
+          videoEl.play().catch(() => {});
         });
       } else {
         videoEl.pause();
@@ -181,18 +219,20 @@ export function renderReels() {
     });
   }, {
     root: container,
-    threshold: 0.5
+    threshold: [0.3, 0.5, 0.7]
   });
 
   container.querySelectorAll('.reel-card').forEach(card => {
     reelsObserver.observe(card);
   });
 
+  // Listener za scroll na kontejneru sa debounce-om
+  let scrollTimeout = null;
   container.onscroll = () => {
-    clearTimeout(container._scrollTimeout);
-    container._scrollTimeout = setTimeout(() => {
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
       playCurrentVisibleReel();
-    }, 150);
+    }, 60);
   };
 
   // Reel comment submit
