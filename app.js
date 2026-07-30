@@ -15,10 +15,17 @@ import { initChatModule, loadConversations } from './src/js/modules/chat.js';
 import { initProfileModule, renderProfileGrid } from './src/js/modules/profile.js';
 import { registerUser, loginUser, logoutUser, fetchCurrentUser, createReelAPI, createPostAPI, createStoryAPI } from './src/js/services/api.js';
 
+let isAppInitialized = false;
+
 document.addEventListener('DOMContentLoaded', initApp);
-if (document.readyState !== 'loading') initApp();
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  initApp();
+}
 
 async function initApp() {
+  if (isAppInitialized) return;
+  isAppInitialized = true;
+
   detectUserPreciseLocation(true);
 
   // Check auth session via /api/me (Cookie)
@@ -80,6 +87,10 @@ function updateProfileUI() {
 
 function setupPasswordToggleListeners() {
   document.querySelectorAll('.btn-toggle-pw').forEach(btn => {
+    // Avoid double attaching
+    if (btn.dataset.hasToggleListener) return;
+    btn.dataset.hasToggleListener = 'true';
+
     btn.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
@@ -162,6 +173,10 @@ function setupFileUploadListeners() {
 
 // ======== EVENTS ========
 function setupEventListeners() {
+  const appContainer = document.getElementById('app');
+  if (appContainer.dataset.listenersAttached === 'true') return;
+  appContainer.dataset.listenersAttached = 'true';
+
   document.addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { e.preventDefault(); playSound('click'); switchTab(t.getAttribute('data-tab')); } });
   document.getElementById('btn-mobile-location')?.addEventListener('click', () => { playSound('click'); detectUserPreciseLocation(false); });
   document.getElementById('btn-update-prof-gps')?.addEventListener('click', () => { playSound('click'); detectUserPreciseLocation(false); });
@@ -329,7 +344,9 @@ function switchTab(tab) {
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.getAttribute('data-tab') === tab));
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
   if (tab === 'reels') {
-    playCurrentVisibleReel();
+    setTimeout(() => {
+      playCurrentVisibleReel();
+    }, 100);
   } else {
     document.querySelectorAll('video.reel-video').forEach(v => v.pause());
   }
