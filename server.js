@@ -711,11 +711,38 @@ app.post('/api/stories/:id/comment', authenticateToken, async (req, res) => {
 });
 
 // ========= REELS =========
-app.get('/api/reels', async (req, res) => {
+app.get('/api/reels', optionalAuth, async (req, res) => {
   try {
-    const r = await pool.query(`SELECT r.id, r.video_url, r.caption, r.audio_title, r.likes_count, r.comments_count, r.created_at, u.nickname AS author, u.full_name, u.avatar FROM reels r JOIN users u ON r.user_id = u.id ORDER BY r.created_at DESC`);
+    const currentUserId = req.user ? req.user.id : null;
+
+    // SELAMY SMART RECOMMENDATION ALGORITHM FOR REELS v2.0
+    // Calculates score based on:
+    // 1. Engagement: (likes_count * 3) + (comments_count * 5)
+    // 2. Freshness Boost: Reels created in last 24h get extra points (+25)
+    // 3. User Personalization: If current user interacted with author before (+15)
+    const query = `
+      SELECT 
+        r.id, r.video_url, r.caption, r.audio_title, r.likes_count, r.comments_count, r.created_at,
+        u.id AS author_id, u.nickname AS author, u.full_name, u.avatar,
+        (
+          (r.likes_count * 3) + 
+          (r.comments_count * 5) + 
+          (CASE WHEN r.created_at >= NOW() - INTERVAL '24 hours' THEN 25 ELSE 0 END) +
+          (CASE WHEN $1::int IS NOT NULL AND EXISTS(
+            SELECT 1 FROM likes l JOIN posts p ON l.post_id = p.id WHERE l.user_id = $1::int AND p.user_id = u.id
+          ) THEN 15 ELSE 0 END)
+        ) AS recommendation_score
+      FROM reels r
+      JOIN users u ON r.user_id = u.id
+      ORDER BY recommendation_score DESC, r.created_at DESC
+    `;
+
+    const r = await pool.query(query, [currentUserId]);
     res.json({ reels: r.rows });
-  } catch (err) { res.status(500).json({ error: 'Greška pri učitavanju reel-ova' }); }
+  } catch (err) { 
+    console.error('GET /api/reels error:', err); 
+    res.status(500).json({ error: 'Greška pri učitavanju reel-ova' }); 
+  }
 });
 
 app.post('/api/reels', authenticateToken, async (req, res) => {
