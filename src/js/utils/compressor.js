@@ -50,15 +50,29 @@ export function compressImageFile(file, maxWidth = 1080, quality = 0.78) {
  * Display toast message
  */
 export function showToast(message) {
-  const container = document.getElementById('toast-container');
+  let container = document.getElementById('toast-container');
   if (!container) return;
+
+  // Spriječi prikaz duplih identičnih obavještenja u kratkom vremenu
+  const existing = Array.from(container.querySelectorAll('.toast-text')).find(el => el.textContent.trim() === message.trim());
+  if (existing && existing.parentElement) {
+    existing.parentElement.remove();
+  }
 
   const toast = document.createElement('div');
   toast.className = 'toast';
-  toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${message}`;
+  toast.innerHTML = `
+    <i class="fa-solid fa-circle-check toast-icon"></i>
+    <span class="toast-text">${message}</span>
+  `;
   container.appendChild(toast);
 
   setTimeout(() => {
-    toast.remove();
-  }, 3500);
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-10px)';
+    toast.style.transition = 'all 0.25s ease';
+    setTimeout(() => {
+      toast.remove();
+    }, 250);
+  }, 3200);
 }
